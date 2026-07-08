@@ -1,0 +1,205 @@
+"""Базовый агент: вызов LLM, строгая валидация JSON, ретрай, JSON-логирование.
+
+Контракт агента:
+- вход — ``AgentContext`` (диалог + сегменты + метаданные);
+- выход — Pydantic-модель (``llm_output_model`` → ``postprocess`` → результат);
+- при невалидном JSON — один повтор с текстом ошибки валидации в промпте;
+- вход и выход каждого запуска логируются в JSON (требование ТЗ).
+"""
+
+from __future__ import annotations
+
+import asyncio
+import json
+import re
+from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
+from time import perf_counter
+from typing import Generic, Protocol, TypeVar
+
+from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_openai import ChatOpenAI
+from pydantic import BaseModel, ValidationError
+
+from mtbank_analyzer.config import Settings
+from mtbank_analyzer.logging_setup import get_logger
+from mtbank_analyzer.schemas import TranscriptSegment, format_dialog
+
+logger = get_logger(__name__)
+
+TResult = TypeVar("TResult", bound=BaseModel)
+
+_MAX_ATTEMPTS = 2
+
+
+class AgentError(RuntimeError):
+    """Агент не смог получить валидный результат."""
+
+    def __init__(self, agent: str, message: str) -> None:
+        self.agent = agent
+        super().__init__(f"[{agent}] {message}")
+
+
+class LLMClient(Protocol):
+    """Минимальный интерфейс LLM — позволяет подменять клиента в тестах."""
+
+    model_name: str
+
+    async def complete(self, *, system: str, user: str) -> str: ...
+
+
+class OpenAICompatLLM:
+    """Клиент любого OpenAI-совместимого эндпоинта (Ollama/vLLM/Groq/OpenRouter).
+
+    JSON-mode (``response_format={"type": "json_object"}``) повышает долю валидных
+    ответов, но поддержан не всеми провайдерами — при ошибке клиент один раз
+    повторяет запрос без JSON-mode и запоминает это.
+    """
+
+    def __init__(self, settings: Settings) -> None:
+        self.model_name = settings.llm_model
+        common = dict(
+            base_url=settings.llm_base_url,
+            api_key=settings.llm_api_key,
+            model=settings.llm_model,
+            temperature=settings.llm_temperature,
+            timeout=settings.llm_timeout_sec,
+            max_retries=2,
+        )
+        self._plain = ChatOpenAI(**common)
+        self._json = (
+            self._plain.bind(response_format={"type": "json_object"})
+            if settings.llm_json_mode
+            else None
+        )
+        self._json_mode_broken = False
+
+    async def complete(self, *, system: str, user: str) -> str:
+        messages = [SystemMessage(content=system), HumanMessage(content=user)]
+        client = (
+            self._json if self._json is not None and not self._json_mode_broken else self._plain
+        )
+        try:
+            response = await client.ainvoke(messages)
+        except Exception:
+            if client is self._json:
+                # Провайдер не поддержал response_format — деградируем без него
+                logger.warning("llm_json_mode_unsupported", model=self.model_name)
+                self._json_mode_broken = True
+                response = await self._plain.ainvoke(messages)
+            else:
+                raise
+        return _content_to_text(response.content)
+
+
+def _content_to_text(content: str | list) -> str:
+    """LangChain может вернуть список блоков — склеиваем текстовые части."""
+    if isinstance(content, str):
+        return content
+    parts = [block if isinstance(block, str) else block.get("text", "") for block in content]
+    return "".join(parts)
+
+
+def extract_json(text: str) -> str:
+    """Достаёт JSON-объект из ответа LLM (сносит markdown-ограждения и преамбулы)."""
+    text = text.strip()
+    if text.startswith("```"):
+        text = re.sub(r"^```[a-zA-Z]*\s*", "", text)
+        text = re.sub(r"\s*```$", "", text.strip())
+    start, end = text.find("{"), text.rfind("}")
+    if start == -1 or end <= start:
+        raise ValueError("в ответе LLM не найден JSON-объект")
+    return text[start : end + 1]
+
+
+@dataclass(frozen=True)
+class AgentContext:
+    """Вход всех агентов: подготовленный транскрипт и метаданные звонка."""
+
+    segments: list[TranscriptSegment]
+    dialog: str
+    duration_sec: float = 0.0
+    language: str | None = None
+
+    @classmethod
+    def from_segments(
+        cls,
+        segments: list[TranscriptSegment],
+        duration_sec: float = 0.0,
+        language: str | None = None,
+    ) -> AgentContext:
+        return cls(
+            segments=segments,
+            dialog=format_dialog(segments),
+            duration_sec=duration_sec,
+            language=language,
+        )
+
+
+@dataclass
+class BaseAgent(ABC, Generic[TResult]):
+    """Скелет агента: prompt → LLM → JSON → Pydantic → postprocess."""
+
+    llm: LLMClient
+    timeout_sec: float = 120.0
+    name: str = field(init=False, default="agent")
+
+    #: Схема, которую обязан вернуть LLM (может отличаться от итоговой)
+    llm_output_model: type[BaseModel] = field(init=False, default=BaseModel)
+
+    @property
+    @abstractmethod
+    def system_prompt(self) -> str: ...
+
+    def build_user_prompt(self, ctx: AgentContext) -> str:
+        return (
+            f"Транскрипт телефонного звонка "
+            f"(длительность {ctx.duration_sec:.0f} сек, "
+            f"формат реплик: [начало–конец] Роль: текст):\n\n{ctx.dialog}"
+        )
+
+    def postprocess(self, llm_output: BaseModel, ctx: AgentContext) -> TResult:
+        """По умолчанию ответ LLM и есть результат агента."""
+        return llm_output  # type: ignore[return-value]
+
+    async def run(self, ctx: AgentContext) -> TResult:
+        log = logger.bind(agent=self.name, llm_model=self.llm.model_name)
+        user_prompt = self.build_user_prompt(ctx)
+        log.info("agent_input", input=user_prompt)
+
+        started = perf_counter()
+        prompt = user_prompt
+        last_error: Exception | None = None
+        for attempt in range(1, _MAX_ATTEMPTS + 1):
+            try:
+                async with asyncio.timeout(self.timeout_sec):
+                    raw = await self.llm.complete(system=self.system_prompt, user=prompt)
+                llm_output = self.llm_output_model.model_validate_json(extract_json(raw))
+                result: TResult = self.postprocess(llm_output, ctx)
+                log.info(
+                    "agent_output",
+                    output=result.model_dump(),
+                    attempt=attempt,
+                    latency_ms=int((perf_counter() - started) * 1000),
+                )
+                return result
+            except (ValidationError, ValueError, json.JSONDecodeError) as exc:
+                # Невалидный JSON — даём LLM одну попытку исправиться
+                last_error = exc
+                log.warning("agent_invalid_output", error=str(exc), attempt=attempt)
+                prompt = (
+                    f"{user_prompt}\n\n"
+                    f"ВНИМАНИЕ: твой предыдущий ответ не прошёл валидацию схемы "
+                    f"({exc}). Верни СТРОГО один валидный JSON-объект по схеме "
+                    f"из инструкции, без markdown и пояснений."
+                )
+            except TimeoutError as exc:
+                last_error = exc
+                log.error("agent_timeout", timeout_sec=self.timeout_sec)
+                break
+            except Exception as exc:  # транспорт/провайдер LLM
+                last_error = exc
+                log.error("agent_llm_error", error=str(exc))
+                break
+
+        raise AgentError(self.name, str(last_error))

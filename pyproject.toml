@@ -1,0 +1,77 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mtbank-analyzer"
+version = "0.1.0"
+description = "MTBank AI Engineer — анализ звонков контакт-центра: ASR + Multi-Agent аналитика на OpenWebUI Pipelines"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Pavel Kruglikovskii" }]
+
+# Ядро: общая библиотека для OpenWebUI Pipeline и FastAPI-сервиса.
+# Лёгкая по зависимостям — контейнер pipelines не тянет torch/whisper.
+dependencies = [
+    "pydantic>=2.7,<3",
+    "pydantic-settings>=2.2,<3",
+    "structlog>=24.1",
+    "httpx>=0.27",
+    "langgraph>=0.2.50",
+    "langchain-openai>=0.2.5",
+]
+
+[project.optional-dependencies]
+# Analysis Engine: ASR + REST API (только контейнер api)
+api = [
+    "fastapi>=0.111",
+    "uvicorn[standard]>=0.30",
+    "python-multipart>=0.0.9",
+    "faster-whisper>=1.0.3",
+    "numpy>=1.26",
+    "scipy>=1.11",
+    "prometheus-client>=0.20",
+]
+# Разработка, тесты, подготовка тестовых данных
+dev = [
+    "pytest>=8.2",
+    "pytest-asyncio>=0.23",
+    "respx>=0.21",
+    "ruff>=0.5",
+    "jiwer>=3.0",
+    "edge-tts>=6.1",
+    "websockets>=12",   # scripts/ws_client.py — демо real-time режима
+    "truststore>=0.9",  # корпоративные сети с TLS-инспекцией
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests", "scripts"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle
+    "F",   # pyflakes
+    "I",   # isort
+    "UP",  # pyupgrade
+    "B",   # bugbear
+    "SIM", # simplify
+    "RUF", # ruff-specific
+]
+ignore = ["RUF001", "RUF002", "RUF003"] # кириллица в строках/комментариях — намеренно
+
+[tool.ruff.lint.per-file-ignores]
+# длинные реплики диалогов и примеры JSON-схем в промптах не переносим
+"scripts/generate_test_data.py" = ["E501"]
+"src/mtbank_analyzer/agents/*" = ["E501"]
+"pipeline.py" = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+filterwarnings = ["ignore::DeprecationWarning"]

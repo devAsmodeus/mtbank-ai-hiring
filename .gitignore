@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+.venv/
+.pytest_cache/
+.ruff_cache/
+build/
+dist/
+
+# Конфигурация с секретами
+.env
+
+# Данные рантайма
+data/
+
+# IDE
+.idea/
+.vscode/

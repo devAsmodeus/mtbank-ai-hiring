@@ -161,7 +161,7 @@ class Pipeline:
 
             yield "🤖 Агенты анализируют (классификация ∥ качество ∥ комплаенс ∥ резюме)…\n\n"
             assert self.orchestrator is not None, "pipeline не инициализирован"
-            report = asyncio.run(self.orchestrator.analyze(transcription))
+            report = _run_async(self.orchestrator.analyze(transcription))
 
             self._push_report_to_engine(report)
             yield "---\n\n"
@@ -296,6 +296,23 @@ class Pipeline:
 
 class UserFacingError(RuntimeError):
     """Ошибка, которую показываем пользователю в чате как есть."""
+
+
+def _run_async(coro):
+    """Выполняет корутину из синхронного pipe().
+
+    Сервер pipelines обычно зовёт sync-pipe в тредпуле (там event loop нет —
+    достаточно asyncio.run), но отдельные версии вызывают его из потока с
+    запущенным loop — тогда выполняем в отдельном потоке со своим loop.
+    """
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(coro)
+    from concurrent.futures import ThreadPoolExecutor
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        return executor.submit(asyncio.run, coro).result()
 
 
 # ------------------------------------------------------------------ рендеринг

@@ -56,9 +56,7 @@ async def stream(path: Path, url: str, realtime: bool) -> None:
                     elif data["type"] == "done":
                         print("\n== финальный транскрипт (с диаризацией) ==")
                         for seg in data["segments"]:
-                            print(
-                                f"  [{seg['start']:6.1f}] {seg['speaker']}: {seg['text']}"
-                            )
+                            print(f"  [{seg['start']:6.1f}] {seg['speaker']}: {seg['text']}")
                         return
             except websockets.ConnectionClosed:
                 pass

@@ -1,0 +1,131 @@
+# МТБанк — анализ звонков контакт-центра. Весь стек: docker compose up -d
+#
+# Профили:
+#   (без профиля)      — open-webui + pipelines + api + prometheus + grafana;
+#                        LLM — внешний OpenAI-совместимый эндпоинт из .env
+#   --profile local-llm — плюс локальная Ollama (модель качается при старте)
+
+services:
+  # ------------------------------------------------- Analysis Engine (ASR+API)
+  api:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.api
+    container_name: mtbank-api
+    env_file:
+      - path: .env
+        required: false
+    ports:
+      - "8000:8000"
+    volumes:
+      - whisper-cache:/home/app/.cache/huggingface
+      - analyses-data:/app/data
+    restart: unless-stopped
+
+  # ------------------------------------------------------ OpenWebUI Pipelines
+  pipelines:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.pipelines
+    container_name: mtbank-pipelines
+    environment:
+      PIPELINES_API_KEY: ${PIPELINES_API_KEY:-0p3n-w3bu!}
+      ENGINE_URL: http://api:8000
+      OPENWEBUI_BASE_URL: http://open-webui:8080
+      OPENWEBUI_API_KEY: ${OPENWEBUI_API_KEY:-}
+      LLM_BASE_URL: ${LLM_BASE_URL:-http://ollama:11434/v1}
+      LLM_API_KEY: ${LLM_API_KEY:-ollama}
+      LLM_MODEL: ${LLM_MODEL:-qwen2.5:7b}
+      LLM_JSON_MODE: ${LLM_JSON_MODE:-true}
+    ports:
+      - "9099:9099"
+    # ВАЖНО: named volume поверх /app/pipelines не монтируем — он бы
+    # зашадовил обновлённый pipeline.py из образа при пересборке
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------- OpenWebUI
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: mtbank-open-webui
+    environment:
+      OPENAI_API_BASE_URL: http://pipelines:9099
+      OPENAI_API_KEY: ${PIPELINES_API_KEY:-0p3n-w3bu!}
+      WEBUI_NAME: "МТБанк — Речевая аналитика"
+      ENABLE_OLLAMA_API: "false"
+    ports:
+      - "3000:8080"
+    volumes:
+      - open-webui-data:/app/backend/data
+    depends_on:
+      - pipelines
+    restart: unless-stopped
+
+  # -------------------------------------------------- Ollama (опциональный LLM)
+  ollama:
+    image: ollama/ollama:latest
+    container_name: mtbank-ollama
+    profiles: ["local-llm"]
+    volumes:
+      - ollama-models:/root/.ollama
+    # для GPU раскомментируйте:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+    restart: unless-stopped
+
+  ollama-pull:
+    image: ollama/ollama:latest
+    profiles: ["local-llm"]
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["sleep 5 && ollama pull ${LLM_MODEL:-qwen2.5:7b}"]
+    depends_on:
+      - ollama
+    restart: "no"
+
+  # ------------------------------------------------------ Мониторинг (бонус)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: mtbank-prometheus
+    volumes:
+      - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: mtbank-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: "Viewer"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/callcenter.json
+    volumes:
+      - ./deploy/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./deploy/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+volumes:
+  whisper-cache:
+  analyses-data:
+  open-webui-data:
+  ollama-models:
+  prometheus-data:
+  grafana-data:

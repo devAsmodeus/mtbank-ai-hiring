@@ -1,0 +1,14 @@
+# OpenWebUI Pipelines + пакет mtbank-analyzer (ядро: агенты + LangGraph)
+#
+# Пакет ставится в образ заранее — pipeline.py загружается сервером pipelines
+# без установки зависимостей на лету (без requirements: в frontmatter).
+FROM ghcr.io/open-webui/pipelines:main
+
+WORKDIR /app
+
+COPY pyproject.toml README.md /opt/mtbank-analyzer/
+COPY src /opt/mtbank-analyzer/src
+RUN pip install --no-cache-dir /opt/mtbank-analyzer
+
+# сам pipeline — в каталог автозагрузки сервера pipelines
+COPY pipeline.py /app/pipelines/mtbank_call_analysis.py

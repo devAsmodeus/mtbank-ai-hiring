@@ -1,0 +1,29 @@
+# Analysis Engine: ASR (faster-whisper) + LangGraph-агенты + REST/WS API
+FROM python:3.11-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+WORKDIR /app
+
+COPY pyproject.toml README.md ./
+COPY src ./src
+RUN pip install ".[api]"
+
+# non-root: требование безопасности для банковской инфраструктуры
+RUN useradd --create-home --uid 1000 app \
+    && mkdir -p /app/data \
+    && chown -R app:app /app
+USER app
+
+# кэш моделей whisper — выносится в named volume (см. docker-compose.yml)
+ENV HF_HOME=/home/app/.cache/huggingface
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=180s --retries=5 \
+    CMD python -c "import urllib.request,sys; r=urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=4); sys.exit(0 if r.status==200 else 1)"
+
+CMD ["uvicorn", "--factory", "mtbank_analyzer.api.app:create_app", \
+     "--host", "0.0.0.0", "--port", "8000"]

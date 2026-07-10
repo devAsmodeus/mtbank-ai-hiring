@@ -1,13 +1,17 @@
-﻿# 📞 МТБанк — AI-анализ звонков контакт-центра
+﻿# МТБанк — AI-анализ звонков контакт-центра
 
-Тестовое задание AI Engineer: транскрибация звонков (ASR + диаризация) и
-мультиагентная аналитика на базе **OpenWebUI Pipelines** + **LangGraph**.
+[![CI](https://github.com/devAsmodeus/mtbank-ai-hiring/actions/workflows/ci.yml/badge.svg)](https://github.com/devAsmodeus/mtbank-ai-hiring/actions/workflows/ci.yml)
+![Python 3.11–3.13](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
+Транскрибация звонков (ASR и диаризация) и мультиагентная аналитика на базе
+**OpenWebUI Pipelines** и **LangGraph**. Сделано как тестовое задание AI Engineer.
 
 Пользователь прикладывает запись звонка в чат OpenWebUI (или дёргает REST API) и
 получает: транскрипт с ролями «Оператор/Клиент», тематику и приоритет обращения,
 чеклист качества работы оператора, compliance-проверку, резюме и action items.
 
-**[English summary below](#-english-summary)**
+**[English summary below](#english-summary)**
 
 ---
 
@@ -200,11 +204,10 @@ summarizer] → aggregate`. LangGraph выбран за декларативны
 параллельным исполнением и типизированное состояние с reducer'ами; параллелизм
 даёт латентность «максимум по агентам» вместо суммы (~4× быстрее).
 
-LLM-супервизор (Supervisor pattern) здесь осознанно **не** используется: состав
-задач фиксирован, и LLM-роутинг добавил бы латентность, стоимость и
-недетерминизм, ничего не решая. Если появятся условные сценарии (например,
-эскалация «жалобы» на отдельную ветку агентов) — точка расширения готова:
-`add_conditional_edges` после `prepare`.
+LLM-супервизор (Supervisor pattern) здесь не нужен: состав задач фиксирован, и
+LLM-роутинг добавил бы латентность, стоимость и недетерминизм, ничего не решая.
+Если появятся условные сценарии (например, эскалация «жалобы» на отдельную ветку
+агентов), точка расширения готова: `add_conditional_edges` после `prepare`.
 
 ### Где живёт что: Pipeline ↔ Engine
 
@@ -256,9 +259,9 @@ CPU. Замеры на тестовых данных — в [WER-таблице]
 Роли назначаются по маркерам речи оператора («МТБанк, меня зовут…», «чем могу
 помочь») с приором «первым в входящем звонке говорит оператор».
 
-Почему не pyannote: модель gated (нужен HF-токен) — сломала бы
-`docker compose up` из коробки; для прототипа с телефонным моно и двумя
-говорящими MFCC-кластеризация — честная «базовая диаризация» из ТЗ.
+Почему не pyannote: модель gated (нужен HF-токен), она сломала бы
+`docker compose up` из коробки. На телефонном моно с двумя говорящими
+MFCC-кластеризация закрывает требование «базовой диаризации» из ТЗ.
 Продакшен-путь описан в [roadmap](#ограничения-и-продакшен-roadmap).
 
 ### Качество: LLM судит — код считает
@@ -317,10 +320,10 @@ CPU. Замеры на тестовых данных — в [WER-таблице]
 (8 кГц µ-law) добавляет ~1 п.п. WER к чистой записи (8.9% против 7.9%).
 Основной класс «ошибок» — форматирование числительных («10» вместо «десяти»,
 «9,5%» вместо «девять и пять десятых процента») и дефисы брендов
-(«МТ-банк» / «МТБанк»): без спец-нормализации они честно засчитываются как
-ошибки, поэтому реальное качество распознавания выше цифр в таблице —
-это видно по CER. Наглядный пример: `monologue_deposit.ogg`, самый «числовой»
-текст, даёт 16.9% WER при полном сохранении смысла.
+(«МТ-банк» против «МТБанк»). Без спец-нормализации они засчитываются как
+ошибки, поэтому реальное качество распознавания выше цифр в таблице, что видно
+по CER. Пример: `monologue_deposit.ogg`, самый «числовой» текст, даёт 16.9% WER
+при полном сохранении смысла.
 
 Отдельно про стерео: раздельная транскрибация каналов потребовала резать
 whisper-сегменты по пословным паузам (после VAD whisper склеивает реплики
@@ -330,8 +333,8 @@ whisper-сегменты по пословным паузам (после VAD wh
 Методика: `python scripts/evaluate_wer.py` прогоняет все файлы `test_data/`
 через полный пайплайн (декодирование → whisper → диаризация) и считает WER/CER
 (`jiwer`) против эталонов. Нормализация — нижний регистр, `ё→е`, снятие
-пунктуации. Числительные не приводятся (модель может написать «10» вместо
-«десяти») — метрики слегка пессимистичны, зато честны.
+пунктуации. Числительные к словам не приводятся (модель может написать «10»
+вместо «десяти»), поэтому метрики скорее занижены, чем завышены.
 
 Тестовые данные — синтетические диалоги (edge-tts, два голоса), включая
 телефонный кодек 8 кГц µ-law, MP3, OGG и двухканальную запись; подробности —
@@ -341,7 +344,7 @@ whisper-сегменты по пословным паузам (после VAD wh
 
 ```bash
 pip install -e ".[api,dev]"
-pytest -q             # 56 тестов
+pytest -q             # 72 теста
 ruff check .          # линт
 mypy                  # типизация (src + pipeline.py)
 pre-commit install    # git-хук: ruff + ruff format + mypy на каждый коммит
@@ -395,7 +398,7 @@ pre-commit install    # git-хук: ruff + ruff format + mypy на каждый 
 | REST `POST /analyze` (file/url) + JSON-контракт | `api/routes.py`, интеграционные тесты контракта |
 | Python 3.11+, FastAPI | да (3.11, Pydantic v2, asyncio) |
 | Docker Compose одним запуском | `docker compose up` — весь стек, LLM-профиль опционален |
-| pytest: юнит на агента + интеграционный pipeline | 56 тестов, см. [Тесты](#тесты) |
+| pytest: юнит на агента + интеграционный pipeline | 72 теста, см. [Тесты](#тесты) |
 | `.env` + `.env.example` | есть, все параметры документированы |
 | JSON-логи вход/выход агентов | structlog, `agent_input`/`agent_output` + correlation_id |
 | Тестовые данные: ≥5 файлов, 8 кГц, диалог 1+ мин, ≥5 мин | 6 файлов, 8.7 мин, два 8 кГц µ-law, два диалога |
@@ -436,8 +439,8 @@ grafana.demo.example.com {
 
 ## Ограничения и продакшен-roadmap
 
-Прототип сознательно упрощён в местах, где продакшен-решение потребовало бы
-инфраструктуры за рамками ТЗ:
+Часть решений упрощена там, где продакшен потребовал бы инфраструктуры за
+рамками ТЗ:
 
 - **Диаризация** — MFCC-кластеризация слабее нейронных эмбеддингов на
   однополых парах голосов и перебивках. Продакшен: pyannote 3.1 / ECAPA-TDNN
@@ -467,13 +470,18 @@ grafana.demo.example.com {
 │   ├── orchestration/graph.py   # LangGraph: fan-out/fan-in, деградация
 │   ├── asr/                     # audio (декодирование), transcriber, diarizer, service
 │   ├── api/                     # FastAPI: routes, ws (real-time), metrics
+│   ├── prompts/                 # версионированные промпты агентов (YAML)
+│   ├── rules/                   # compliance-стоп-фразы и веса скоринга (YAML)
+│   ├── prompts.py, rules.py     # реестры промптов и правил
+│   ├── eval.py                  # оценка качества агентов на golden-set
 │   ├── schemas.py               # Pydantic v2 контракт ТЗ
 │   ├── config.py                # pydantic-settings (.env)
 │   ├── logging_setup.py         # structlog → JSON
-│   └── storage.py               # JSONL-хранилище для трендов
-├── tests/                       # 56 тестов (агенты, граф, ASR, API, pipeline)
+│   └── storage.py               # хранилище анализов (Protocol + JSONL)
+├── eval/golden_set.yaml         # эталонные звонки для оценки агентов
+├── tests/                       # 72 теста (агенты, граф, ASR, API, pipeline, eval)
 ├── test_data/                   # 6 аудио + эталоны + WER-отчёт (см. README)
-├── scripts/                     # generate_test_data, evaluate_wer, ws_client
+├── scripts/                     # generate_test_data, evaluate_wer, evaluate_agents, ws_client
 ├── deploy/                      # Dockerfile.api, Dockerfile.pipelines, prometheus, grafana
 ├── docker-compose.yml           # весь стек одной командой
 └── .env.example                 # вся конфигурация с комментариями
@@ -481,7 +489,7 @@ grafana.demo.example.com {
 
 ---
 
-## 🇬🇧 English summary
+## English summary
 
 Test assignment for the MTBank AI Engineer role: a call-center speech analytics
 prototype. An **OpenWebUI Pipeline** accepts an audio file (or URL) in chat,
@@ -494,4 +502,4 @@ report. The same graph package powers the REST endpoint `POST /analyze`
 real-time transcription, provisioned Grafana dashboard, trends agent over
 accumulated calls, JSON structured logging with correlation ids, graceful
 degradation (a failed agent never kills the analysis; compliance fails closed),
-56 offline tests, and `docker compose up` brings up the whole stack.
+72 offline tests, and `docker compose up` brings up the whole stack.

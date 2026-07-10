@@ -136,21 +136,12 @@ class AgentContext:
     segments: list[TranscriptSegment]
     dialog: str
     duration_sec: float = 0.0
-    language: str | None = None
 
     @classmethod
     def from_segments(
-        cls,
-        segments: list[TranscriptSegment],
-        duration_sec: float = 0.0,
-        language: str | None = None,
+        cls, segments: list[TranscriptSegment], duration_sec: float = 0.0
     ) -> AgentContext:
-        return cls(
-            segments=segments,
-            dialog=format_dialog(segments),
-            duration_sec=duration_sec,
-            language=language,
-        )
+        return cls(segments=segments, dialog=format_dialog(segments), duration_sec=duration_sec)
 
 
 @dataclass

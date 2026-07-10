@@ -152,9 +152,7 @@ class CallAnalysisOrchestrator:
     def _prepare(state: GraphState) -> dict:
         """Готовит общий контекст для всех агентов."""
         t = state["transcription"]
-        ctx = AgentContext.from_segments(
-            t.segments, duration_sec=t.duration_sec, language=t.language
-        )
+        ctx = AgentContext.from_segments(t.segments, duration_sec=t.duration_sec)
         return {"ctx": ctx}
 
     @staticmethod

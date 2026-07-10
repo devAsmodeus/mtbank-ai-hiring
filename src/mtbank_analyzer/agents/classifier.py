@@ -33,7 +33,7 @@ _SYSTEM_PROMPT = """\
 
 
 @dataclass
-class ClassifierAgent(BaseAgent[Classification]):
+class ClassifierAgent(BaseAgent[Classification, Classification]):
     name: str = field(init=False, default="classifier")
     llm_output_model: type[Classification] = field(init=False, default=Classification)
 

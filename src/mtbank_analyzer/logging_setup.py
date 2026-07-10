@@ -51,4 +51,5 @@ def configure_logging(level: str = "INFO") -> None:
 
 
 def get_logger(name: str) -> structlog.typing.FilteringBoundLogger:
-    return structlog.get_logger(name)
+    logger: structlog.typing.FilteringBoundLogger = structlog.get_logger(name)
+    return logger

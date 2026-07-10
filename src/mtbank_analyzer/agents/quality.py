@@ -47,7 +47,7 @@ class _QualityLLMOutput(BaseModel):
 
 
 @dataclass
-class QualityAgent(BaseAgent[QualityScore]):
+class QualityAgent(BaseAgent[_QualityLLMOutput, QualityScore]):
     name: str = field(init=False, default="quality")
     llm_output_model: type[_QualityLLMOutput] = field(init=False, default=_QualityLLMOutput)
 

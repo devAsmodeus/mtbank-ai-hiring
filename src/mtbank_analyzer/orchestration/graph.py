@@ -23,7 +23,7 @@ import operator
 import uuid
 from collections.abc import Awaitable, Callable
 from time import perf_counter
-from typing import Annotated, TypedDict
+from typing import Annotated, Any, TypedDict
 
 import structlog
 from langgraph.graph import END, START, StateGraph
@@ -124,8 +124,9 @@ class CallAnalysisOrchestrator:
 
     # ------------------------------------------------------------ построение
 
-    def _build_graph(self):
-        graph = StateGraph(GraphState)
+    def _build_graph(self) -> Any:
+        # mypy не выводит generics StateGraph для TypedDict-схемы — работаем как с Any
+        graph: Any = StateGraph(GraphState)
         graph.add_node("prepare", self._prepare)
         graph.add_node("classifier", self._agent_node(self.classifier, "classification"))
         graph.add_node("quality", self._agent_node(self.quality, "quality"))

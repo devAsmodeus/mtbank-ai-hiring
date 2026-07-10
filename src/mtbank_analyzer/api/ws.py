@@ -40,7 +40,8 @@ def _pcm16_to_float32(data: bytes, source_sr: int) -> np.ndarray:
         return waveform
     target_len = int(len(waveform) * TARGET_SR / source_sr)
     positions = np.linspace(0, len(waveform) - 1, target_len)
-    return np.interp(positions, np.arange(len(waveform)), waveform).astype(np.float32)
+    resampled: np.ndarray = np.interp(positions, np.arange(len(waveform)), waveform)
+    return resampled.astype(np.float32)
 
 
 @ws_router.websocket("/ws/transcribe")

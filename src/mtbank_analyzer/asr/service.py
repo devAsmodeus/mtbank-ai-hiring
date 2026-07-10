@@ -9,7 +9,7 @@ from mtbank_analyzer.asr.diarizer import Diarizer
 from mtbank_analyzer.asr.transcriber import Transcriber
 from mtbank_analyzer.config import Settings
 from mtbank_analyzer.logging_setup import get_logger
-from mtbank_analyzer.schemas import TranscriptionResult
+from mtbank_analyzer.schemas import TranscriptionResult, TranscriptSegment
 
 logger = get_logger(__name__)
 
@@ -63,7 +63,9 @@ class TranscriptionService:
             asr_model=self.transcriber.model_name,
         )
 
-    async def _transcribe_mono(self, decoded: DecodedAudio):
+    async def _transcribe_mono(
+        self, decoded: DecodedAudio
+    ) -> tuple[list[TranscriptSegment], str | None]:
         outcome = await asyncio.to_thread(self.transcriber.transcribe_waveform, decoded.mono)
         segments = self.diarizer.diarize_mono(decoded.mono, decoded.sample_rate, outcome.segments)
         return segments, outcome.language
@@ -73,7 +75,9 @@ class TranscriptionService:
     # склеил бы далёкие реплики, сломав порядок при слиянии каналов
     _STEREO_WORD_GAP_SEC = 0.6
 
-    async def _transcribe_stereo(self, decoded: DecodedAudio):
+    async def _transcribe_stereo(
+        self, decoded: DecodedAudio
+    ) -> tuple[list[TranscriptSegment], str | None]:
         """Каналы транскрибируются по отдельности — диаризация по построению."""
         assert decoded.channels is not None
         left, right = decoded.channels

@@ -106,7 +106,7 @@ def scan_forbidden_phrases(ctx: AgentContext) -> list[ComplianceIssue]:
 
 
 @dataclass
-class ComplianceAgent(BaseAgent[ComplianceResult]):
+class ComplianceAgent(BaseAgent[_ComplianceLLMOutput, ComplianceResult]):
     name: str = field(init=False, default="compliance")
     llm_output_model: type[_ComplianceLLMOutput] = field(init=False, default=_ComplianceLLMOutput)
 

@@ -39,6 +39,8 @@ dev = [
     "pytest-asyncio>=0.23",
     "respx>=0.21",
     "ruff>=0.5",
+    "mypy>=1.11",
+    "pre-commit>=3.7",
     "jiwer>=3.0",
     "edge-tts>=6.1",
     "websockets>=12",   # scripts/ws_client.py — демо real-time режима
@@ -76,3 +78,18 @@ testpaths = ["tests"]
 pythonpath = ["."]  # tests импортируют хелперы из tests.conftest
 asyncio_mode = "auto"
 filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.mypy]
+python_version = "3.11"
+files = ["src", "pipeline.py"]
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_return_any = true
+disallow_incomplete_defs = true
+
+[[tool.mypy.overrides]]
+# библиотеки без py.typed / стабов
+module = ["faster_whisper.*", "scipy.*", "prometheus_client.*"]
+ignore_missing_imports = true

@@ -1,0 +1,32 @@
+# Pre-commit хуки: линтер + форматер (ruff) и типизация (mypy).
+#
+# Установка (однократно, в активированном venv с dev-зависимостями):
+#     pip install -e ".[api,dev]"
+#     pre-commit install
+#
+# Хуки локальные (language: system, python -m ...) — используют ruff/mypy из
+# активного окружения проекта: одна версия инструментов с pyproject.toml и CI,
+# без расхождений с глобальными установками и без сетевых клонов реп хуков.
+# Коммитить нужно с активированным venv.
+
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff — линтер
+        entry: python -m ruff check --force-exclude
+        language: system
+        types_or: [python, pyi]
+
+      - id: ruff-format
+        name: ruff — форматер
+        entry: python -m ruff format --force-exclude
+        language: system
+        types_or: [python, pyi]
+
+      - id: mypy
+        name: mypy — типизация
+        entry: python -m mypy
+        language: system
+        types: [python]
+        pass_filenames: false  # конфиг files в pyproject: src + pipeline.py

@@ -99,7 +99,7 @@ async def transcribe(
     """Только ASR + диаризация (используется OpenWebUI Pipeline)."""
     data = await _read_audio_input(request, file, url)
     asr_started = time.perf_counter()
-    result = await request.app.state.transcription.transcribe_bytes(data)
+    result: TranscriptionResult = await request.app.state.transcription.transcribe_bytes(data)
     metrics.ASR_DURATION.observe(time.perf_counter() - asr_started)
     return result
 

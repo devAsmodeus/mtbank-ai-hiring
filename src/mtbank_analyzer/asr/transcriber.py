@@ -17,6 +17,7 @@ from mtbank_analyzer.logging_setup import get_logger
 
 if TYPE_CHECKING:
     from faster_whisper import WhisperModel
+    from faster_whisper.transcribe import Word
 
 logger = get_logger(__name__)
 
@@ -36,10 +37,10 @@ class TranscribeOutcome:
     language: str | None
 
 
-def _split_by_word_gap(words, gap_sec: float) -> list[RawSegment]:
+def _split_by_word_gap(words: list[Word], gap_sec: float) -> list[RawSegment]:
     """Режет whisper-сегмент на реплики по паузам между словами."""
     segments: list[RawSegment] = []
-    group: list = []
+    group: list[Word] = []
     for word in words:
         if group and word.start - group[-1].end >= gap_sec:
             segments.append(_words_to_segment(group))
@@ -50,7 +51,7 @@ def _split_by_word_gap(words, gap_sec: float) -> list[RawSegment]:
     return [s for s in segments if s.text]
 
 
-def _words_to_segment(words) -> RawSegment:
+def _words_to_segment(words: list[Word]) -> RawSegment:
     return RawSegment(
         start=round(words[0].start, 2),
         end=round(words[-1].end, 2),

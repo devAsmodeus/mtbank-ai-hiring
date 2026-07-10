@@ -23,7 +23,7 @@ from mtbank_analyzer.api.routes import router
 from mtbank_analyzer.api.ws import ws_router
 from mtbank_analyzer.asr import TranscriptionService
 from mtbank_analyzer.asr.audio import AudioError
-from mtbank_analyzer.config import Settings, get_settings
+from mtbank_analyzer.config import Settings
 from mtbank_analyzer.logging_setup import configure_logging, get_logger
 from mtbank_analyzer.orchestration import CallAnalysisOrchestrator
 from mtbank_analyzer.storage import AnalysisStore
@@ -38,7 +38,7 @@ def create_app(
     trends_agent: TrendsAgent | None = None,
     warmup_asr: bool = True,
 ) -> FastAPI:
-    settings = settings or get_settings()
+    settings = settings or Settings()
     configure_logging(settings.log_level)
 
     transcription_service = transcription_service or TranscriptionService(settings)

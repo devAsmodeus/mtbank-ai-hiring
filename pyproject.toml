@@ -91,5 +91,5 @@ disallow_incomplete_defs = true
 
 [[tool.mypy.overrides]]
 # библиотеки без py.typed / стабов
-module = ["faster_whisper.*", "scipy.*", "prometheus_client.*"]
+module = ["faster_whisper.*", "scipy.*", "prometheus_client.*", "av.*"]
 ignore_missing_imports = true

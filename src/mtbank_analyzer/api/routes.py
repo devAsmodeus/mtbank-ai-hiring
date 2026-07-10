@@ -22,21 +22,25 @@ router = APIRouter()
 
 async def _read_audio_input(request: Request, file: UploadFile | None, url: str | None) -> bytes:
     """Единый приём аудио: multipart-файл, form-поле url или JSON {"url": ...}."""
+    max_mb = request.app.state.settings.max_upload_mb
+    max_bytes = max_mb * 1024 * 1024
     if file is None and url is None:
         content_type = request.headers.get("content-type", "")
         if content_type.startswith("application/json"):
             body = await request.json()
             url = body.get("url") if isinstance(body, dict) else None
     if file is not None:
+        # size известен из multipart-парсера до чтения тела — отсекаем большой
+        # аплоад, не материализуя его в памяти целиком
+        if file.size is not None and file.size > max_bytes:
+            raise AudioError(f"Файл больше лимита {max_mb} МБ")
         data = await file.read()
-        max_bytes = request.app.state.settings.max_upload_mb * 1024 * 1024
         if len(data) > max_bytes:
-            raise AudioError(f"Файл больше лимита {request.app.state.settings.max_upload_mb} МБ")
+            raise AudioError(f"Файл больше лимита {max_mb} МБ")
         if not data:
             raise AudioError("Пустой файл")
         return data
     if url:
-        max_bytes = request.app.state.settings.max_upload_mb * 1024 * 1024
         return await fetch_audio_from_url(url, max_bytes=max_bytes)
     raise HTTPException(
         status_code=422,

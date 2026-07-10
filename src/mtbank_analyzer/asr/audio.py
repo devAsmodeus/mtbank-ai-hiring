@@ -93,6 +93,30 @@ async def fetch_audio_from_url(url: str, max_bytes: int) -> bytes:
     return data
 
 
+def probe_duration_sec(data: bytes) -> float | None:
+    """Длительность из заголовка контейнера без декодирования (быстро, ~мс).
+
+    Позволяет отсечь очень длинное аудио до полной материализации волны в
+    памяти (mp3 с низким битрейтом раздувается в гигабайты PCM). Возвращает
+    None, если контейнер не сообщает длительность (например, потоковый ответ).
+    """
+    import av
+
+    try:
+        with av.open(io.BytesIO(data)) as container:
+            total = getattr(container, "duration", None)  # μs; есть только у InputContainer
+            if total is not None:
+                return float(total) / av.time_base
+            audio_streams = container.streams.audio
+            if audio_streams:
+                stream = audio_streams[0]
+                if stream.duration is not None and stream.time_base is not None:
+                    return float(stream.duration * stream.time_base)
+    except Exception:
+        return None
+    return None
+
+
 def decode_bytes(data: bytes, sampling_rate: int = TARGET_SAMPLE_RATE) -> DecodedAudio:
     """Декодирует WAV/MP3/OGG в float32 16 кГц; определяет реальное стерео.
 

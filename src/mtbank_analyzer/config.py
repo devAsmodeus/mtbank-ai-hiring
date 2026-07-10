@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_VALID_LOG_LEVELS = frozenset({"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"})
 
 
 class Settings(BaseSettings):
@@ -43,27 +44,33 @@ class Settings(BaseSettings):
 
     # --- Диаризация ---
     diarization_enabled: bool = True
-    diarization_max_speakers: int = 2
 
     # --- Analysis Engine (FastAPI) ---
-    api_host: str = "0.0.0.0"
-    api_port: int = 8000
     max_upload_mb: int = 50
     max_audio_duration_sec: float = 1800.0
     storage_dir: Path = Field(
         default=Path("data"), description="Каталог JSONL-хранилища анализов (для трендов)"
     )
 
-    # --- Pipeline → Engine ---
-    engine_url: str = Field(
-        default="http://api:8000",
-        description="URL Analysis Engine для OpenWebUI Pipeline",
-    )
-
     # --- Логирование ---
     log_level: str = "INFO"
 
+    @field_validator("whisper_language", mode="before")
+    @classmethod
+    def _blank_language_means_auto(cls, value: str | None) -> str | None:
+        # Через env нельзя передать None: пустая строка WHISPER_LANGUAGE= означает
+        # автоопределение языка (иначе '' уходит в whisper как невалидный код).
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value
 
-@lru_cache
-def get_settings() -> Settings:
-    return Settings()
+    @field_validator("log_level")
+    @classmethod
+    def _known_log_level(cls, value: str) -> str:
+        level = value.strip().upper()
+        if level not in _VALID_LOG_LEVELS:
+            raise ValueError(
+                f"LOG_LEVEL={value!r} не поддерживается; допустимо: "
+                f"{', '.join(sorted(_VALID_LOG_LEVELS))}"
+            )
+        return level

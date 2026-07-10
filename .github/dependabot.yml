@@ -12,8 +12,15 @@ updates:
     directory: "/"
     schedule:
       interval: weekly
+    groups:
+      github-actions:
+        patterns: ["*"]
 
   - package-ecosystem: docker
     directory: "/deploy"
     schedule:
       interval: weekly
+    ignore:
+      # базовый образ держим на 3.11 (стабильные колёса faster-whisper/ctranslate2)
+      - dependency-name: python
+        update-types: ["version-update:semver-major"]

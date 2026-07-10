@@ -17,6 +17,7 @@ import structlog
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 
+from mtbank_analyzer import __version__
 from mtbank_analyzer.agents import OpenAICompatLLM
 from mtbank_analyzer.agents.trends import TrendsAgent
 from mtbank_analyzer.api.routes import router
@@ -72,7 +73,7 @@ def create_app(
     app = FastAPI(
         title="MTBank Call Analysis Engine",
         description="ASR + Multi-Agent аналитика звонков контакт-центра",
-        version="0.1.0",
+        version=__version__,
         lifespan=lifespan,
     )
     app.state.settings = settings

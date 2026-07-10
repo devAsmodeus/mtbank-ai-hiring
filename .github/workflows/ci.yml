@@ -5,15 +5,23 @@ on:
     branches: [main]
   pull_request:
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   lint-and-test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: ${{ matrix.python-version }}
           cache: pip
 
       - name: Install package
@@ -37,6 +45,9 @@ jobs:
 
       - name: Build engine image
         run: docker build -f deploy/Dockerfile.api -t mtbank-api:ci .
+
+      - name: Build pipelines image
+        run: docker build -f deploy/Dockerfile.pipelines -t mtbank-pipelines:ci .
 
       - name: Validate compose
         run: docker compose config --quiet

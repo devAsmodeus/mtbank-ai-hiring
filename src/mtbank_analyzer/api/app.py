@@ -26,7 +26,7 @@ from mtbank_analyzer.asr.audio import AudioError
 from mtbank_analyzer.config import Settings
 from mtbank_analyzer.logging_setup import configure_logging, get_logger
 from mtbank_analyzer.orchestration import CallAnalysisOrchestrator
-from mtbank_analyzer.storage import AnalysisStore
+from mtbank_analyzer.storage import AnalysisStorage, JsonlAnalysisStore
 
 logger = get_logger(__name__)
 
@@ -36,6 +36,7 @@ def create_app(
     transcription_service: TranscriptionService | None = None,
     orchestrator: CallAnalysisOrchestrator | None = None,
     trends_agent: TrendsAgent | None = None,
+    store: AnalysisStorage | None = None,
     warmup_asr: bool = True,
 ) -> FastAPI:
     settings = settings or Settings()
@@ -78,7 +79,7 @@ def create_app(
     app.state.transcription = transcription_service
     app.state.orchestrator = orchestrator
     app.state.trends_agent = trends_agent
-    app.state.store = AnalysisStore(settings.storage_dir)
+    app.state.store = store or JsonlAnalysisStore(settings.storage_dir)
 
     @app.middleware("http")
     async def request_logging(

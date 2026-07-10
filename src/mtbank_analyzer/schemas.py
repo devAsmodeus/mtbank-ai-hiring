@@ -6,7 +6,7 @@ JSON-контракт ответа ``/analyze`` зафиксирован в ТЗ
 
 from __future__ import annotations
 
-from typing import ClassVar, Literal
+from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -58,30 +58,27 @@ class QualityChecklist(BaseModel):
 class QualityScore(BaseModel):
     """Оценка качества: чеклист от LLM, итоговый балл считается кодом.
 
-    LLM отвечает за семантические суждения (было ли приветствие),
-    арифметика — детерминированная (веса в ``compute_total``), чтобы балл
-    был воспроизводимым и аудируемым.
+    LLM отвечает за семантические суждения (было ли приветствие), арифметика
+    детерминированная, чтобы балл был воспроизводимым и аудируемым. Веса пунктов
+    — бизнес-политика, живут в конфиге (``rules/quality_weights.yaml``), а не в
+    контракте данных, и передаются извне.
     """
 
     total: int = Field(ge=0, le=100)
     checklist: QualityChecklist
     comments: list[str] = Field(default_factory=list, description="Замечания по разговору")
 
-    # Веса пунктов чеклиста (в сумме 100)
-    WEIGHTS: ClassVar[dict[str, int]] = {
-        "greeting": 20,
-        "need_detection": 25,
-        "solution_provided": 35,
-        "farewell": 20,
-    }
+    @staticmethod
+    def compute_total(checklist: QualityChecklist, weights: dict[str, int]) -> int:
+        return sum(w for item, w in weights.items() if getattr(checklist, item, False))
 
     @classmethod
-    def compute_total(cls, checklist: QualityChecklist) -> int:
-        return sum(weight for item, weight in cls.WEIGHTS.items() if getattr(checklist, item))
-
-    @classmethod
-    def from_checklist(cls, checklist: QualityChecklist, comments: list[str]) -> QualityScore:
-        return cls(total=cls.compute_total(checklist), checklist=checklist, comments=comments)
+    def from_checklist(
+        cls, checklist: QualityChecklist, comments: list[str], weights: dict[str, int]
+    ) -> QualityScore:
+        return cls(
+            total=cls.compute_total(checklist, weights), checklist=checklist, comments=comments
+        )
 
 
 class ComplianceIssue(BaseModel):
@@ -122,6 +119,8 @@ class AnalysisMeta(BaseModel):
     language: str | None = None
     asr_model: str | None = None
     llm_model: str | None = None
+    #: версия промпта каждого агента — основа для A/B и разбора регрессий
+    prompt_versions: dict[str, str] = Field(default_factory=dict)
     processing_ms: int | None = None
     agent_failures: list[AgentFailure] = Field(default_factory=list)
 
@@ -145,6 +144,42 @@ class TranscriptionResult(BaseModel):
     language: str | None = None
     duration_sec: float = 0.0
     asr_model: str | None = None
+
+
+class AnalysisRecord(BaseModel):
+    """Запись анализа в хранилище — типизированный источник данных для трендов.
+
+    Отделена от ``AnalysisReport``: хранит только агрегируемые поля, а не весь
+    транскрипт. Замена бэкенда (Postgres) работает с этой моделью, а не с
+    рукописным dict.
+    """
+
+    ts: str
+    correlation_id: str = ""
+    topic: str
+    priority: str
+    quality_total: int
+    checklist: QualityChecklist
+    compliance_passed: bool
+    issues: list[str] = Field(default_factory=list)
+    summary: str = ""
+    duration_sec: float | None = None
+
+    @classmethod
+    def from_report(cls, report: AnalysisReport, ts: str) -> AnalysisRecord:
+        return cls(
+            ts=ts,
+            correlation_id=report.meta.correlation_id,
+            topic=report.classification.topic,
+            priority=report.classification.priority,
+            quality_total=report.quality_score.total,
+            checklist=report.quality_score.checklist,
+            compliance_passed=report.compliance.passed,
+            # служебное псевдо-нарушение в агрегаты трендов не идёт
+            issues=[i.rule for i in report.compliance.issues if i.rule != COMPLIANCE_NOT_RUN],
+            summary=report.summary,
+            duration_sec=report.meta.audio_duration_sec,
+        )
 
 
 def format_dialog(segments: list[TranscriptSegment]) -> str:

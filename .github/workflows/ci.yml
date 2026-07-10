@@ -24,6 +24,9 @@ jobs:
           ruff check .
           ruff format --check .
 
+      - name: Mypy (типизация)
+        run: mypy
+
       - name: Pytest
         run: pytest -q
 

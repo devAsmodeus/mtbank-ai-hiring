@@ -49,7 +49,7 @@ class TrendsReport(BaseModel):
 
 
 @dataclass
-class TrendsAgent(BaseAgent[TrendsInsights]):
+class TrendsAgent(BaseAgent[TrendsInsights, TrendsInsights]):
     name: str = field(init=False, default="trends")
     llm_output_model: type[TrendsInsights] = field(init=False, default=TrendsInsights)
 

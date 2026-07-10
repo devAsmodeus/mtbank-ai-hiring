@@ -88,12 +88,8 @@ class Pipeline:
         self.name = "МТБанк: Анализ звонка"
         # начальные значения валв — из переменных окружения контейнера,
         # дальше редактируются через UI (Admin → Pipelines)
-        self.valves = self.Valves(
-            **{
-                field: os.environ[field]
-                for field in self.Valves.model_fields
-                if field in os.environ
-            }
+        self.valves = self.Valves.model_validate(
+            {field: os.environ[field] for field in self.Valves.model_fields if field in os.environ}
         )
         self.orchestrator: CallAnalysisOrchestrator | None = None
         configure_logging()
@@ -115,7 +111,7 @@ class Pipeline:
         """Пересобирает граф агентов; в тестах принимает fake-LLM."""
         if llm is None:
             llm = OpenAICompatLLM(
-                Settings(
+                Settings(  # type: ignore[call-arg]  # _env_file — рантайм-параметр pydantic-settings
                     llm_base_url=self.valves.LLM_BASE_URL,
                     llm_api_key=self.valves.LLM_API_KEY,
                     llm_model=self.valves.LLM_MODEL,
@@ -199,14 +195,15 @@ class Pipeline:
         """
         candidates: list[Any] = []
         for container in (body or {}, (body or {}).get("metadata") or {}):
-            files = container.get("files")
+            files = container.get("files") if isinstance(container, dict) else None
             if isinstance(files, list):
                 candidates.extend(files)
 
         for item in reversed(candidates):
             if not isinstance(item, dict):
                 continue
-            file_info = item.get("file") if isinstance(item.get("file"), dict) else item
+            raw_file = item.get("file")
+            file_info: dict[str, Any] = raw_file if isinstance(raw_file, dict) else item
             file_id = item.get("id") or file_info.get("id")
             filename = (
                 file_info.get("filename")

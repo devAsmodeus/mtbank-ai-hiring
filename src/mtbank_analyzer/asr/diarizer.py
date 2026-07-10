@@ -100,12 +100,13 @@ def mfcc_embedding(
     voiced = mfcc[energy > np.percentile(energy, 30)]
     if len(voiced) < 3:
         voiced = mfcc
-    return np.concatenate([voiced.mean(axis=0), voiced.std(axis=0)])
+    embedding: np.ndarray = np.concatenate([voiced.mean(axis=0), voiced.std(axis=0)])
+    return embedding
 
 
 def _mel_filterbank(sample_rate: int, n_fft: int, n_mels: int) -> np.ndarray:
     def hz_to_mel(hz: float) -> float:
-        return 2595.0 * np.log10(1.0 + hz / 700.0)
+        return float(2595.0 * np.log10(1.0 + hz / 700.0))
 
     def mel_to_hz(mel: np.ndarray) -> np.ndarray:
         return 700.0 * (10.0 ** (mel / 2595.0) - 1.0)
@@ -132,7 +133,8 @@ def cluster_two_speakers(embeddings: np.ndarray) -> np.ndarray:
 
     normalized = (embeddings - embeddings.mean(axis=0)) / (embeddings.std(axis=0) + 1e-8)
     links = linkage(normalized, method="average", metric="cosine")
-    return fcluster(links, t=2, criterion="maxclust") - 1  # метки 0/1
+    labels: np.ndarray = fcluster(links, t=2, criterion="maxclust") - 1  # метки 0/1
+    return labels
 
 
 # ----------------------------------------------------------------- Diarizer
@@ -166,18 +168,16 @@ class Diarizer:
             piece = waveform[int(seg.start * sample_rate) : int(seg.end * sample_rate)]
             embeddings.append(mfcc_embedding(piece, sample_rate))
 
-        valid_idx = [i for i, e in enumerate(embeddings) if e is not None]
-        if len(valid_idx) < 4:
+        valid = [(i, e) for i, e in enumerate(embeddings) if e is not None]
+        if len(valid) < 4:
             return self._single_speaker(raw_segments)
 
-        labels_valid = cluster_two_speakers(np.stack([embeddings[i] for i in valid_idx]))
-        labels: list[int | None] = [None] * len(raw_segments)
-        for i, label in zip(valid_idx, labels_valid, strict=True):
-            labels[i] = int(label)
-        # короткие сегменты наследуют спикера предыдущей реплики
-        for i in range(len(labels)):
-            if labels[i] is None:
-                labels[i] = labels[i - 1] if i > 0 and labels[i - 1] is not None else 0
+        labels_valid = cluster_two_speakers(np.stack([e for _, e in valid]))
+        by_index = {i: int(label) for (i, _), label in zip(valid, labels_valid, strict=True)}
+        # короткие сегменты (без эмбеддинга) наследуют спикера предыдущей реплики
+        labels: list[int] = []
+        for i in range(len(raw_segments)):
+            labels.append(by_index.get(i, labels[-1] if labels else 0))
 
         if self._is_degenerate(labels, raw_segments):
             logger.info("diarization_collapsed_to_single_speaker")
@@ -230,11 +230,11 @@ class Diarizer:
     # --- вспомогательные ---
 
     @staticmethod
-    def _is_degenerate(labels: list[int | None], segments: list[RawSegment]) -> bool:
+    def _is_degenerate(labels: list[int], segments: list[RawSegment]) -> bool:
         """Кластеризация «развалилась»: один кластер почти пуст по времени."""
         durations = {0: 0.0, 1: 0.0}
         for label, seg in zip(labels, segments, strict=True):
-            durations[int(label or 0)] += seg.end - seg.start
+            durations[label] += seg.end - seg.start
         total = sum(durations.values())
         return total <= 0 or min(durations.values()) / total < 0.05
 
@@ -248,18 +248,18 @@ class Diarizer:
         ]
 
     def _assign_roles_by_label(
-        self, labels: list[int | None], segments: list[RawSegment]
+        self, labels: list[int], segments: list[RawSegment]
     ) -> dict[int, str]:
         texts: dict[int, list[str]] = {0: [], 1: []}
         for label, seg in zip(labels, segments, strict=True):
-            texts[int(label or 0)].append(seg.text)
+            texts[label].append(seg.text)
 
         score_0 = _operator_likeness(texts[0])
         score_1 = _operator_likeness(texts[1])
-        if score_0 != score_1:
+        if score_0 != score_1:  # noqa: SIM108 — вложенный тернарник хуже читается
             operator_label = 0 if score_0 > score_1 else 1
         else:
-            operator_label = int(labels[0] or 0)  # приор: первым говорит оператор
+            operator_label = labels[0]  # приор: первым говорит оператор
         return {
             operator_label: OPERATOR,
             1 - operator_label: CLIENT,

@@ -29,7 +29,7 @@ _SYSTEM_PROMPT = """\
 
 
 @dataclass
-class SummarizerAgent(BaseAgent[CallSummary]):
+class SummarizerAgent(BaseAgent[CallSummary, CallSummary]):
     name: str = field(init=False, default="summarizer")
     llm_output_model: type[CallSummary] = field(init=False, default=CallSummary)
 

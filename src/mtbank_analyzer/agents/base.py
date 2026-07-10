@@ -15,11 +15,11 @@ import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from time import perf_counter
-from typing import Generic, Protocol, TypeVar
+from typing import Generic, Protocol, TypeVar, cast
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, SecretStr, ValidationError
 
 from mtbank_analyzer.config import Settings
 from mtbank_analyzer.logging_setup import get_logger
@@ -27,6 +27,9 @@ from mtbank_analyzer.schemas import TranscriptSegment, format_dialog
 
 logger = get_logger(__name__)
 
+#: схема, которую возвращает LLM
+TLLMOut = TypeVar("TLLMOut", bound=BaseModel)
+#: итоговый результат агента (может отличаться после postprocess)
 TResult = TypeVar("TResult", bound=BaseModel)
 
 _MAX_ATTEMPTS = 2
@@ -58,15 +61,14 @@ class OpenAICompatLLM:
 
     def __init__(self, settings: Settings) -> None:
         self.model_name = settings.llm_model
-        common = dict(
+        self._plain = ChatOpenAI(
             base_url=settings.llm_base_url,
-            api_key=settings.llm_api_key,
+            api_key=SecretStr(settings.llm_api_key),
             model=settings.llm_model,
             temperature=settings.llm_temperature,
             timeout=settings.llm_timeout_sec,
             max_retries=2,
         )
-        self._plain = ChatOpenAI(**common)
         self._json = (
             self._plain.bind(response_format={"type": "json_object"})
             if settings.llm_json_mode
@@ -137,15 +139,15 @@ class AgentContext:
 
 
 @dataclass
-class BaseAgent(ABC, Generic[TResult]):
+class BaseAgent(ABC, Generic[TLLMOut, TResult]):
     """Скелет агента: prompt → LLM → JSON → Pydantic → postprocess."""
 
     llm: LLMClient
     timeout_sec: float = 120.0
     name: str = field(init=False, default="agent")
 
-    #: Схема, которую обязан вернуть LLM (может отличаться от итоговой)
-    llm_output_model: type[BaseModel] = field(init=False, default=BaseModel)
+    #: Схема, которую обязан вернуть LLM (задаётся в наследнике)
+    llm_output_model: type[TLLMOut] = field(init=False)
 
     @property
     @abstractmethod
@@ -158,9 +160,9 @@ class BaseAgent(ABC, Generic[TResult]):
             f"формат реплик: [начало–конец] Роль: текст):\n\n{ctx.dialog}"
         )
 
-    def postprocess(self, llm_output: BaseModel, ctx: AgentContext) -> TResult:
-        """По умолчанию ответ LLM и есть результат агента."""
-        return llm_output  # type: ignore[return-value]
+    def postprocess(self, llm_output: TLLMOut, ctx: AgentContext) -> TResult:
+        """По умолчанию ответ LLM и есть результат агента (TLLMOut == TResult)."""
+        return cast(TResult, llm_output)
 
     async def run(self, ctx: AgentContext) -> TResult:
         log = logger.bind(agent=self.name, llm_model=self.llm.model_name)

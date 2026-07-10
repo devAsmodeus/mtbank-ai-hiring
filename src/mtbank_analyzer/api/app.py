@@ -10,10 +10,11 @@ from __future__ import annotations
 import asyncio
 import time
 import uuid
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 
 import structlog
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 
 from mtbank_analyzer.agents import OpenAICompatLLM
@@ -49,7 +50,7 @@ def create_app(
         trends_agent = trends_agent or TrendsAgent(llm=llm, timeout_sec=settings.agent_timeout_sec)
 
     @asynccontextmanager
-    async def lifespan(app: FastAPI):
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         logger.info(
             "engine_starting",
             whisper_model=settings.whisper_model,
@@ -80,7 +81,9 @@ def create_app(
     app.state.store = AnalysisStore(settings.storage_dir)
 
     @app.middleware("http")
-    async def request_logging(request: Request, call_next):
+    async def request_logging(
+        request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
         correlation_id = request.headers.get("x-request-id") or uuid.uuid4().hex
         structlog.contextvars.bind_contextvars(correlation_id=correlation_id)
         request.state.correlation_id = correlation_id
@@ -102,7 +105,7 @@ def create_app(
         return response
 
     @app.exception_handler(AudioError)
-    async def audio_error_handler(request: Request, exc: AudioError):
+    async def audio_error_handler(request: Request, exc: AudioError) -> JSONResponse:
         return JSONResponse(status_code=400, content={"detail": str(exc)})
 
     app.include_router(router)

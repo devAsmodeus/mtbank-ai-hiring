@@ -341,8 +341,10 @@ whisper-сегменты по пословным паузам (после VAD wh
 
 ```bash
 pip install -e ".[api,dev]"
-pytest -q          # 56 тестов
-ruff check .       # линт
+pytest -q             # 56 тестов
+ruff check .          # линт
+mypy                  # типизация (src + pipeline.py)
+pre-commit install    # git-хук: ruff + ruff format + mypy на каждый коммит
 ```
 
 | Модуль | Что покрыто |

@@ -4,12 +4,24 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mtbank-analyzer"
-version = "0.1.0"
+dynamic = ["version"]
 description = "MTBank AI Engineer — анализ звонков контакт-центра: ASR + Multi-Agent аналитика на OpenWebUI Pipelines"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
 authors = [{ name = "Pavel Kruglikovskii" }]
+keywords = ["asr", "whisper", "langgraph", "openwebui", "fastapi", "speech-analytics", "llm"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Multimedia :: Sound/Audio :: Speech",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Typing :: Typed",
+]
 
 # Ядро: общая библиотека для OpenWebUI Pipeline и FastAPI-сервиса.
 # Лёгкая по зависимостям — контейнер pipelines не тянет torch/whisper.
@@ -48,6 +60,13 @@ dev = [
     "websockets>=12",   # scripts/ws_client.py — демо real-time режима
     "truststore>=0.9",  # корпоративные сети с TLS-инспекцией
 ]
+
+[project.urls]
+Repository = "https://github.com/devAsmodeus/mtbank-ai-hiring"
+Issues = "https://github.com/devAsmodeus/mtbank-ai-hiring/issues"
+
+[tool.setuptools.dynamic]
+version = { attr = "mtbank_analyzer.__version__" }
 
 [tool.setuptools.packages.find]
 where = ["src"]

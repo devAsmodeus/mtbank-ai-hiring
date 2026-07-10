@@ -144,6 +144,12 @@ def test_trends_requires_at_least_two_calls(client: TestClient) -> None:
     assert response.status_code == 409
 
 
+def test_trends_rejects_nonpositive_limit(client: TestClient) -> None:
+    # limit=0 больше не означает «вся история» — валидатор отвергает
+    assert client.get("/trends?limit=0").status_code == 422
+    assert client.get("/trends?limit=-5").status_code == 422
+
+
 def test_trends_aggregates_and_insights(client: TestClient) -> None:
     for _ in range(2):
         assert (
@@ -226,3 +232,19 @@ def test_ws_realtime_transcription(client: TestClient) -> None:
         assert done["duration_sec"] == pytest.approx(2.5, abs=0.05)
         assert done["segments"], "финал должен содержать диаризованные сегменты"
         assert done["segments"][0]["speaker"] in ("Оператор", "Клиент")
+
+
+def test_ws_rejects_invalid_sample_rate(client: TestClient) -> None:
+    with client.websocket_connect("/ws/transcribe") as ws:
+        ws.send_text('{"sample_rate": 0}')
+        message = ws.receive_json()
+        assert message["type"] == "error"
+
+
+def test_ws_odd_frame_does_not_crash(client: TestClient) -> None:
+    with client.websocket_connect("/ws/transcribe") as ws:
+        ws.send_text('{"sample_rate": 16000}')
+        assert ws.receive_json()["type"] == "ready"
+        ws.send_bytes(b"\x00\x01\x02")  # нечётное число байт — не должно ронять сокет
+        ws.send_text('{"type": "flush"}')
+        assert ws.receive_json()["type"] == "done"

@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import asyncio
 
+import numpy as np
+
 from mtbank_analyzer.asr.audio import AudioError, DecodedAudio, decode_bytes, probe_duration_sec
 from mtbank_analyzer.asr.diarizer import Diarizer
-from mtbank_analyzer.asr.transcriber import Transcriber
+from mtbank_analyzer.asr.transcriber import TranscribeOutcome, Transcriber
 from mtbank_analyzer.config import Settings
 from mtbank_analyzer.logging_setup import get_logger
 from mtbank_analyzer.schemas import TranscriptionResult, TranscriptSegment
@@ -38,6 +40,15 @@ class TranscriptionService:
         )
         self.diarizer = diarizer or Diarizer(enabled=settings.diarization_enabled)
         self._semaphore = asyncio.Semaphore(1)
+
+    async def transcribe_block(self, waveform: np.ndarray) -> TranscribeOutcome:
+        """Транскрибация одного блока под общим семафором (real-time WS).
+
+        Ходит через тот же семафор, что и transcribe_bytes, поэтому WS-стрим и
+        REST /analyze не запускают конкурентные whisper-инференсы на CPU.
+        """
+        async with self._semaphore:
+            return await asyncio.to_thread(self.transcriber.transcribe_waveform, waveform)
 
     async def transcribe_bytes(self, data: bytes) -> TranscriptionResult:
         """Полный ASR-пайплайн для готового файла."""

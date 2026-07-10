@@ -13,7 +13,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from mtbank_analyzer.logging_setup import get_logger
-from mtbank_analyzer.schemas import AnalysisReport
+from mtbank_analyzer.schemas import COMPLIANCE_NOT_RUN, AnalysisReport
 
 logger = get_logger(__name__)
 
@@ -32,7 +32,9 @@ class AnalysisStore:
             "quality_total": report.quality_score.total,
             "checklist": report.quality_score.checklist.model_dump(),
             "compliance_passed": report.compliance.passed,
-            "issues": [issue.rule for issue in report.compliance.issues],
+            "issues": [
+                issue.rule for issue in report.compliance.issues if issue.rule != COMPLIANCE_NOT_RUN
+            ],
             "summary": report.summary,
             "duration_sec": report.meta.audio_duration_sec,
         }
@@ -62,4 +64,5 @@ class AnalysisStore:
                     records.append(json.loads(line))
                 except json.JSONDecodeError:
                     logger.warning("storage_bad_line_skipped")
-        return records[-limit:]
+        # limit<=0 не должен означать «вся история» (records[-0:] == records)
+        return records[-limit:] if limit > 0 else []

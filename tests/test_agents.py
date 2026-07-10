@@ -167,6 +167,37 @@ async def test_compliance_merges_llm_and_regex_without_duplicates() -> None:
     assert len(result.issues) == 2
 
 
+async def _compliance_of(text: str) -> list[str]:
+    segments = [TranscriptSegment(speaker=OPERATOR, start=0, end=5, text=text)]
+    ctx = AgentContext.from_segments(segments)
+    result = await ComplianceAgent(llm=fake_llm({"issues": []})).run(ctx)
+    return [issue.rule for issue in result.issues]
+
+
+async def test_compliance_catches_guarantee_with_comma() -> None:
+    # запятая после «Гарантирую» больше не ломает детекцию
+    rules = await _compliance_of("Гарантирую, что кредит одобрят.")
+    assert any("Гарантия одобрения" in r for r in rules)
+
+
+async def test_compliance_ignores_negated_guarantee() -> None:
+    # «не гарантирует одобрение» — не нарушение, а корректная оговорка
+    rules = await _compliance_of("Банк не гарантирует одобрение, решение принимает банк.")
+    assert rules == []
+
+
+async def test_compliance_ignores_antifraud_warning() -> None:
+    # предостережение оператора про пароль не должно ловиться regex-контуром
+    rules = await _compliance_of("Сообщите нам, если кто-то попросит назвать ваш пароль.")
+    assert rules == []
+
+
+async def test_compliance_catches_sms_code_with_words_between() -> None:
+    # «код ПОДТВЕРЖДЕНИЯ из СМС» — слова между «код» и «из СМС» не мешают
+    rules = await _compliance_of("Назовите код подтверждения из СМС.")
+    assert any("кода из СМС" in r for r in rules)
+
+
 def test_compliance_issue_defaults() -> None:
     issue = ComplianceIssue(rule="x")
     assert issue.severity == "medium"
@@ -189,6 +220,21 @@ async def test_summarizer_returns_summary_and_action_items(ctx: AgentContext) ->
 
 
 # --------------------------------------------------------------------- base
+
+
+def test_json_mode_disabled_only_on_client_format_error() -> None:
+    from mtbank_analyzer.agents.base import _looks_like_json_mode_unsupported
+
+    class Err(Exception):
+        def __init__(self, status: int) -> None:
+            self.status_code = status
+
+    assert _looks_like_json_mode_unsupported(Err(400)) is True
+    assert _looks_like_json_mode_unsupported(Err(422)) is True
+    # транзиентные ошибки не должны навсегда отключать JSON-mode
+    assert _looks_like_json_mode_unsupported(Err(429)) is False
+    assert _looks_like_json_mode_unsupported(Err(503)) is False
+    assert _looks_like_json_mode_unsupported(ConnectionError("сеть")) is False
 
 
 def test_extract_json_strips_markdown_fences() -> None:

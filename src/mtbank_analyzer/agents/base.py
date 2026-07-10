@@ -83,15 +83,29 @@ class OpenAICompatLLM:
         )
         try:
             response = await client.ainvoke(messages)
-        except Exception:
-            if client is self._json:
-                # Провайдер не поддержал response_format — деградируем без него
+        except Exception as exc:
+            # JSON-mode отключаем НАВСЕГДА только если провайдер явно его не принял
+            # (клиентская ошибка 400/404/422). Транзиентную ошибку (429, 5xx, сеть)
+            # пробрасываем — иначе один rate-limit калечит JSON-mode на весь процесс.
+            if client is self._json and _looks_like_json_mode_unsupported(exc):
                 logger.warning("llm_json_mode_unsupported", model=self.model_name)
                 self._json_mode_broken = True
                 response = await self._plain.ainvoke(messages)
             else:
                 raise
         return _content_to_text(response.content)
+
+
+def _looks_like_json_mode_unsupported(exc: Exception) -> bool:
+    """Похоже ли исключение на «провайдер не поддержал response_format».
+
+    Клиентские статусы 400/404/422 означают отказ обработать сам запрос; 429,
+    5xx и сетевые ошибки транзиентны и НЕ должны отключать JSON-mode.
+    """
+    status = getattr(exc, "status_code", None)
+    if status is None:
+        status = getattr(getattr(exc, "response", None), "status_code", None)
+    return status in (400, 404, 422)
 
 
 def _content_to_text(content: str | list) -> str:

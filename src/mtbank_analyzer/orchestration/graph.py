@@ -41,6 +41,7 @@ from mtbank_analyzer.agents import (
 from mtbank_analyzer.agents.compliance import scan_forbidden_phrases
 from mtbank_analyzer.logging_setup import get_logger
 from mtbank_analyzer.schemas import (
+    COMPLIANCE_NOT_RUN,
     AgentFailure,
     AnalysisMeta,
     AnalysisReport,
@@ -98,7 +99,9 @@ class CallAnalysisOrchestrator:
             raise ValueError("транскрипт пуст — нечего анализировать")
 
         correlation_id = correlation_id or uuid.uuid4().hex
-        structlog.contextvars.bind_contextvars(correlation_id=correlation_id)
+        # reset-token, а не unbind: если correlation_id уже привязан вызывающим
+        # (HTTP-middleware), по выходе восстановим его значение, а не удалим ключ.
+        tokens = structlog.contextvars.bind_contextvars(correlation_id=correlation_id)
         started = perf_counter()
         try:
             logger.info(
@@ -120,7 +123,7 @@ class CallAnalysisOrchestrator:
             )
             return report
         finally:
-            structlog.contextvars.unbind_contextvars("correlation_id")
+            structlog.contextvars.reset_contextvars(**tokens)
 
     # ------------------------------------------------------------ построение
 
@@ -192,7 +195,7 @@ class CallAnalysisOrchestrator:
                 issues=[
                     *rule_issues,
                     ComplianceIssue(
-                        rule="Проверка не выполнена",
+                        rule=COMPLIANCE_NOT_RUN,
                         severity="high",
                         comment="LLM-контур комплаенса недоступен — требуется ручная проверка",
                     ),

@@ -14,6 +14,11 @@ from pydantic import BaseModel, Field, field_validator
 OPERATOR = "Оператор"
 CLIENT = "Клиент"
 
+# Служебное «нарушение», которым помечается звонок, когда LLM-контур комплаенса
+# недоступен. В отчёте оно нужно (сигнал ручной проверки), но в агрегаты трендов
+# не идёт — иначе завышает долю нарушений и попадает в топ «частых».
+COMPLIANCE_NOT_RUN = "Проверка не выполнена"
+
 Topic = Literal["кредиты", "карты", "переводы", "жалобы", "другое"]
 Priority = Literal["low", "medium", "high"]
 Severity = Literal["low", "medium", "high"]

@@ -91,38 +91,55 @@ class Pipeline:
         self.valves = self.Valves.model_validate(
             {field: os.environ[field] for field in self.Valves.model_fields if field in os.environ}
         )
-        self.orchestrator: CallAnalysisOrchestrator | None = None
+        # В проде orchestrator строится per-request (см. _analyze), чтобы
+        # LLM-клиент с его пулом соединений не переживал event loop между
+        # сообщениями чата. Внедрённый экземпляр используют только тесты.
+        self._injected_orchestrator: CallAnalysisOrchestrator | None = None
         configure_logging()
 
     # ------------------------------------------------------- lifecycle hooks
 
     async def on_startup(self) -> None:
-        self._build_orchestrator()
         logger.info("pipeline_started", engine_url=self.valves.ENGINE_URL)
 
     async def on_shutdown(self) -> None:
         logger.info("pipeline_stopped")
 
     async def on_valves_updated(self) -> None:
-        self._build_orchestrator()
+        # Новые valves подхватываются на следующем запросе (orchestrator строится
+        # per-request), пересобирать заранее ничего не нужно.
         logger.info("pipeline_valves_updated", llm_model=self.valves.LLM_MODEL)
 
     def _build_orchestrator(self, llm: LLMClient | None = None) -> None:
-        """Пересобирает граф агентов; в тестах принимает fake-LLM."""
-        if llm is None:
-            llm = OpenAICompatLLM(
-                Settings(  # type: ignore[call-arg]  # _env_file — рантайм-параметр pydantic-settings
-                    llm_base_url=self.valves.LLM_BASE_URL,
-                    llm_api_key=self.valves.LLM_API_KEY,
-                    llm_model=self.valves.LLM_MODEL,
-                    llm_temperature=self.valves.LLM_TEMPERATURE,
-                    llm_json_mode=self.valves.LLM_JSON_MODE,
-                    _env_file=None,
-                )
-            )
-        self.orchestrator = CallAnalysisOrchestrator(
-            llm, agent_timeout_sec=self.valves.AGENT_TIMEOUT_SEC
+        """Внедрить orchestrator с fake-LLM (только для тестов).
+
+        В проде llm не передаётся и orchestrator строится per-request в _analyze.
+        """
+        self._injected_orchestrator = (
+            CallAnalysisOrchestrator(llm, agent_timeout_sec=self.valves.AGENT_TIMEOUT_SEC)
+            if llm is not None
+            else None
         )
+
+    def _make_llm(self) -> OpenAICompatLLM:
+        return OpenAICompatLLM(
+            Settings(  # type: ignore[call-arg]  # _env_file — рантайм-параметр pydantic-settings
+                llm_base_url=self.valves.LLM_BASE_URL,
+                llm_api_key=self.valves.LLM_API_KEY,
+                llm_model=self.valves.LLM_MODEL,
+                llm_temperature=self.valves.LLM_TEMPERATURE,
+                llm_json_mode=self.valves.LLM_JSON_MODE,
+                _env_file=None,
+            )
+        )
+
+    async def _analyze(self, transcription: TranscriptionResult) -> AnalysisReport:
+        # LLM создаётся здесь, внутри per-request event loop, и живёт только один
+        # запрос — так пул соединений не переиспользуется через закрытый loop.
+        orchestrator = self._injected_orchestrator or CallAnalysisOrchestrator(
+            self._make_llm(), agent_timeout_sec=self.valves.AGENT_TIMEOUT_SEC
+        )
+        return await orchestrator.analyze(transcription)
 
     # ------------------------------------------------------------------ pipe
 
@@ -156,8 +173,7 @@ class Pipeline:
             )
 
             yield "🤖 Агенты анализируют (классификация ∥ качество ∥ комплаенс ∥ резюме)…\n\n"
-            assert self.orchestrator is not None, "pipeline не инициализирован"
-            report = _run_async(self.orchestrator.analyze(transcription))
+            report = _run_async(self._analyze(transcription))
 
             self._push_report_to_engine(report)
             yield "---\n\n"

@@ -5,7 +5,7 @@ from __future__ import annotations
 import time
 from typing import Annotated
 
-from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import PlainTextResponse, Response
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
@@ -126,9 +126,9 @@ async def ingest_report(request: Request, report: AnalysisReport) -> Response:
 
 
 @router.get("/trends", response_model=TrendsReport)
-async def trends(request: Request, limit: int = 50) -> TrendsReport:
+async def trends(request: Request, limit: Annotated[int, Query(ge=1, le=200)] = 50) -> TrendsReport:
     """Бонус: агент трендов по последним проанализированным звонкам."""
-    records = await request.app.state.store.load_recent(limit=min(limit, 200))
+    records = await request.app.state.store.load_recent(limit=limit)
     if len(records) < 2:
         raise HTTPException(
             status_code=409,

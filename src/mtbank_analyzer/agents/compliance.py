@@ -46,27 +46,36 @@ _SYSTEM_PROMPT = """\
 {"issues": [{"rule": "краткое название правила", "quote": "цитата", "severity": "low|medium|high", "comment": "пояснение"}]}
 """
 
-# Высокоточные стоп-фразы: (регэксп, название правила, severity)
+# Высокоточные стоп-фразы: (регэксп, название правила, severity).
+# Контур ловит только ОДНОЗНАЧНЫЕ формулировки; тонкую семантику (отрицания,
+# предостережения про пароль, дисклеймеры) оставляем LLM — regex здесь ошибётся.
+# Между словами допускаем пунктуацию [\s,]+ (реплики ASR идут с запятыми),
+# гарантию одобрения гасим lookbehind'ом на «не », чтобы не ловить отрицание.
 FORBIDDEN_PATTERNS: list[tuple[re.Pattern[str], str, Severity]] = [
     (
         re.compile(
-            r"гарантир\w*\s+(?:\w+\s+){0,3}?одобр|одобр\w*\s+стопроцентн|стопроцентн\w*\s+одобр",
+            r"(?<!не\s)гарантиру[а-яё]*[\s,]+(?:[а-яё]+[\s,]+){0,3}?одобр"
+            r"|одобр[а-яё]*[\s,]+(?:[а-яё]+[\s,]+){0,2}?(?:гарантиру|стопроцентн)"
+            r"|стопроцентн[а-яё]*[\s,]+(?:[а-яё]+[\s,]+){0,2}?одобр",
             re.IGNORECASE,
         ),
         "Гарантия одобрения кредита",
         "medium",
     ),
     (
+        # CVV/CVC оператор не должен произносить вообще; «полный номер карты»
+        # и ПИН — только по запросу. «Пароль» многозначен → отдан LLM.
         re.compile(
-            r"(?:продиктуйте|назовите|скажите|сообщите)[^.!?]{0,60}?(?:cvv|cvc|пин[\s-]?код|полный номер карты|пароль)",
+            r"\b(?:cvv|cvc)\b|полн\w*\s+номер\s+карты|пин[\s-]?код",
             re.IGNORECASE,
         ),
         "Запрос чувствительных данных карты",
         "high",
     ),
     (
+        # «код/пароль из СМС» с любыми словами между (код ПОДТВЕРЖДЕНИЯ из СМС)
         re.compile(
-            r"(?:код|пароль)\s+из\s+смс[^.!?]{0,40}?(?:продиктуйте|назовите|скажите|сообщите)|(?:продиктуйте|назовите|скажите|сообщите)[^.!?]{0,40}?(?:код|пароль)\s+из\s+смс",
+            r"(?:код|пароль)[а-яё]*(?:\s+[а-яё]+){0,3}?\s+из\s+(?:смс|sms)",
             re.IGNORECASE,
         ),
         "Запрос кода из СМС",
@@ -116,12 +125,12 @@ class ComplianceAgent(BaseAgent[_ComplianceLLMOutput, ComplianceResult]):
 
     def postprocess(self, llm_output: _ComplianceLLMOutput, ctx: AgentContext) -> ComplianceResult:
         rule_issues = scan_forbidden_phrases(ctx)
-        # LLM-находки, которые лишь дублируют цитаты regex-контура, отбрасываем
-        rule_quotes = {issue.quote for issue in rule_issues}
+        # Отбрасываем LLM-находку, только если её цитата ТОЧНО совпадает с цитатой
+        # regex-контура (то же нарушение). Другое нарушение с цитатой из той же
+        # реплики (например, отсутствие дисклеймера) сохраняется.
+        rule_quotes = {issue.quote.strip() for issue in rule_issues if issue.quote}
         llm_issues = [
-            issue
-            for issue in llm_output.issues
-            if not any(issue.quote and issue.quote in quote for quote in rule_quotes)
+            issue for issue in llm_output.issues if issue.quote.strip() not in rule_quotes
         ]
         issues = rule_issues + llm_issues
         return ComplianceResult(passed=not issues, issues=issues)

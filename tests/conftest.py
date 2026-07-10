@@ -202,4 +202,4 @@ def segments() -> list[TranscriptSegment]:
 
 @pytest.fixture
 def ctx(segments: list[TranscriptSegment]) -> AgentContext:
-    return AgentContext.from_segments(segments, duration_sec=28.0, language="ru")
+    return AgentContext.from_segments(segments, duration_sec=28.0)

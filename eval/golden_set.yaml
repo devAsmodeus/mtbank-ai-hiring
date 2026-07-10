@@ -1,0 +1,45 @@
+# Эталонный набор для оценки качества агентов (не ASR — тексты уже точные).
+# Прогон: python scripts/evaluate_agents.py  (нужна рабочая LLM в .env).
+# Детерминированный compliance-контур проверяется offline в tests/test_eval.py.
+cases:
+  - id: credit_ok
+    dialog:
+      - {speaker: Оператор, text: "Добрый день, МТБанк, меня зовут Анна, чем могу помочь?"}
+      - {speaker: Клиент, text: "Здравствуйте, хочу узнать про кредит наличными."}
+      - {speaker: Оператор, text: "Подскажите, какая сумма и срок вас интересуют?"}
+      - {speaker: Клиент, text: "Сто тысяч на два года."}
+      - {speaker: Оператор, text: "Ставка от четырнадцати процентов, точные условия рассчитываются индивидуально. Оформить заявку онлайн?"}
+      - {speaker: Клиент, text: "Да, давайте."}
+      - {speaker: Оператор, text: "Отправлю инструкцию. Спасибо за обращение в МТБанк, всего доброго!"}
+    expected:
+      topic: кредиты
+      priority: medium
+      checklist: {greeting: true, need_detection: true, solution_provided: true, farewell: true}
+      compliance_passed: true
+
+  - id: card_block_complaint
+    dialog:
+      - {speaker: Оператор, text: "МТБанк, оператор Ольга, слушаю вас."}
+      - {speaker: Клиент, text: "У меня заблокировали карту, я возмущён, это уже второй раз!"}
+      - {speaker: Оператор, text: "Приношу извинения, сейчас разберёмся с блокировкой."}
+    expected:
+      topic: карты
+      priority: high
+      compliance_passed: true
+
+  - id: card_cvv_violation
+    dialog:
+      - {speaker: Оператор, text: "Для проверки продиктуйте, пожалуйста, полный номер карты и CVV с обратной стороны."}
+      - {speaker: Клиент, text: "Разве это не запрещено?"}
+    expected:
+      topic: карты
+      compliance_passed: false
+      compliance_rules_any: ["Запрос чувствительных данных карты"]
+
+  - id: deposit_info
+    dialog:
+      - {speaker: Оператор, text: "МТБанк, здравствуйте. Информирую об условиях вкладов: ставка до одиннадцати процентов."}
+    expected:
+      topic: другое
+      priority: low
+      compliance_passed: true

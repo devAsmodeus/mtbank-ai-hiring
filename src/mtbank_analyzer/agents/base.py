@@ -12,7 +12,7 @@ from __future__ import annotations
 import asyncio
 import json
 import re
-from abc import ABC, abstractmethod
+from abc import ABC
 from dataclasses import dataclass, field
 from time import perf_counter
 from typing import Generic, Protocol, TypeVar, cast
@@ -23,6 +23,7 @@ from pydantic import BaseModel, SecretStr, ValidationError
 
 from mtbank_analyzer.config import Settings
 from mtbank_analyzer.logging_setup import get_logger
+from mtbank_analyzer.prompts import Prompt, get_prompt_registry
 from mtbank_analyzer.schemas import TranscriptSegment, format_dialog
 
 logger = get_logger(__name__)
@@ -158,14 +159,19 @@ class BaseAgent(ABC, Generic[TLLMOut, TResult]):
 
     llm: LLMClient
     timeout_sec: float = 120.0
+    prompt: Prompt = field(init=False)
     name: str = field(init=False, default="agent")
 
     #: Схема, которую обязан вернуть LLM (задаётся в наследнике)
     llm_output_model: type[TLLMOut] = field(init=False)
 
+    def __post_init__(self) -> None:
+        # системный промпт и его версия берутся из реестра по имени агента
+        self.prompt = get_prompt_registry().get(self.name)
+
     @property
-    @abstractmethod
-    def system_prompt(self) -> str: ...
+    def system_prompt(self) -> str:
+        return self.prompt.system
 
     def build_user_prompt(self, ctx: AgentContext) -> str:
         return (
@@ -179,7 +185,11 @@ class BaseAgent(ABC, Generic[TLLMOut, TResult]):
         return cast(TResult, llm_output)
 
     async def run(self, ctx: AgentContext) -> TResult:
-        log = logger.bind(agent=self.name, llm_model=self.llm.model_name)
+        log = logger.bind(
+            agent=self.name,
+            prompt_version=self.prompt.version,
+            llm_model=self.llm.model_name,
+        )
         user_prompt = self.build_user_prompt(ctx)
         log.info("agent_input", input=user_prompt)
 

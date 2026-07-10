@@ -113,6 +113,10 @@ class CallAnalysisOrchestrator:
             report: AnalysisReport = state["report"]
             report.meta.correlation_id = correlation_id
             report.meta.llm_model = self.llm.model_name
+            report.meta.prompt_versions = {
+                agent.name: agent.prompt.version
+                for agent in (self.classifier, self.quality, self.compliance, self.summarizer)
+            }
             logger.info(
                 "analysis_finished",
                 agents_ms=int((perf_counter() - started) * 1000),

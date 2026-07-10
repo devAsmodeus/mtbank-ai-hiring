@@ -73,5 +73,6 @@ ignore = ["RUF001", "RUF002", "RUF003"] # кириллица в строках/�
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]  # tests импортируют хелперы из tests.conftest
 asyncio_mode = "auto"
 filterwarnings = ["ignore::DeprecationWarning"]

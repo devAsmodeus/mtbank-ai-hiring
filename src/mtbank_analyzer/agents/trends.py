@@ -1,8 +1,8 @@
 """Агент трендов (бонус): анализ нескольких звонков, выявление паттернов.
 
-Агрегаты (распределение тем, средний балл, доля нарушений) считает код —
+Агрегаты (распределение тем, средний балл, доля нарушений) считает код -
 детерминированно; LLM интерпретирует их и резюме звонков в паттерны
-и рекомендации для супервайзера. Системный промпт — в ``prompts/trends.yaml``.
+и рекомендации для супервайзера. Системный промпт - в ``prompts/trends.yaml``.
 """
 
 from __future__ import annotations
@@ -39,7 +39,7 @@ class TrendsAgent(BaseAgent[TrendsInsights, TrendsInsights]):
     llm_output_model: type[TrendsInsights] = field(init=False, default=TrendsInsights)
 
     def build_user_prompt(self, ctx: AgentContext) -> str:
-        # ctx.dialog здесь — текстовая сводка по звонкам (см. build_trends_report)
+        # ctx.dialog здесь - текстовая сводка по звонкам (см. build_trends_report)
         return ctx.dialog
 
 

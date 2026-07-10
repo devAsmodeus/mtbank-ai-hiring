@@ -1,6 +1,6 @@
 """Интеграционный тест OpenWebUI Pipeline (ТЗ: интеграционный тест pipeline).
 
-Pipeline тестируется как чёрный ящик: engine замокан respx-ом, LLM — fake.
+Pipeline тестируется как чёрный ящик: engine замокан respx-ом, LLM - fake.
 Проверяем весь путь: сообщение пользователя → скачивание аудио →
 /transcribe → LangGraph-агенты → markdown-отчёт → push в /reports.
 """

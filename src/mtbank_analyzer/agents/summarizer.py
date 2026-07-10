@@ -1,6 +1,6 @@
 """Агент-суммаризатор: резюме звонка + action items.
 
-Системный промпт — в ``prompts/summarizer.yaml``.
+Системный промпт - в ``prompts/summarizer.yaml``.
 """
 
 from __future__ import annotations

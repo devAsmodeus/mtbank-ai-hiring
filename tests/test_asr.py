@@ -23,7 +23,7 @@ def test_sniff_format_magic_bytes() -> None:
     assert sniff_format(b"OggS" + b"\x00" * 20) == "ogg"
     assert sniff_format(b"ID3\x04\x00" + b"\x00" * 20) == "mp3"
     assert sniff_format(b"\xff\xfb\x90\x00" + b"\x00" * 20) == "mp3"
-    assert sniff_format(b"\x1aE\xdf\xa3" + b"\x00" * 20) is None  # webm — не поддержан
+    assert sniff_format(b"\x1aE\xdf\xa3" + b"\x00" * 20) is None  # webm - не поддержан
 
 
 def test_validate_format_rejects_unknown() -> None:
@@ -108,7 +108,7 @@ def test_cluster_two_speakers_on_synthetic_tones() -> None:
     labels = cluster_two_speakers(embs)
 
     assert set(labels) == {0, 1}
-    assert len(set(labels[::2])) == 1  # все чётные — один кластер
+    assert len(set(labels[::2])) == 1  # все чётные - один кластер
     assert len(set(labels[1::2])) == 1
     assert labels[0] != labels[1]
 
@@ -148,7 +148,7 @@ def test_label_stereo_by_content_markers() -> None:
         RawSegment(2.5, 4.5, "Здравствуйте, хочу узнать про кредит."),
         RawSegment(7.5, 9.0, "Сто тысяч на два года."),
     ]
-    # оператор — во ВТОРОМ (правом) канале: проверяем, что решают маркеры, а не порядок
+    # оператор - во ВТОРОМ (правом) канале: проверяем, что решают маркеры, а не порядок
     merged = Diarizer().label_stereo(client_channel, operator_channel)
 
     assert [s.speaker for s in merged] == [OPERATOR, CLIENT, OPERATOR, CLIENT]
@@ -180,7 +180,7 @@ def test_split_by_word_gap_cuts_merged_utterances() -> None:
         FakeWord(0.4, 0.7, " У"),
         FakeWord(0.75, 1.1, " меня"),
         FakeWord(1.15, 1.5, " вопрос."),
-        # пауза 20 с — говорил собеседник (другой канал)
+        # пауза 20 с - говорил собеседник (другой канал)
         FakeWord(21.5, 21.9, " Спасибо,"),
         FakeWord(22.0, 22.4, " понял."),
     ]

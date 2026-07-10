@@ -3,22 +3,22 @@ title: MTBank Call Analysis
 author: Pavel Kruglikovskii
 version: 0.1.0
 license: MIT
-description: Анализ звонков контакт-центра — ASR, диаризация и мультиагентная аналитика (LangGraph) прямо в чате OpenWebUI.
+description: Анализ звонков контакт-центра - ASR, диаризация и мультиагентная аналитика (LangGraph) прямо в чате OpenWebUI.
 """
 
-# OpenWebUI Pipeline — оркестрация анализа звонка для чат-интерфейса.
+# OpenWebUI Pipeline - оркестрация анализа звонка для чат-интерфейса.
 #
-# Роль в архитектуре (подробное обоснование — README, «Архитектурные решения»):
+# Роль в архитектуре (подробное обоснование - README, «Архитектурные решения»):
 # - тяжёлый ASR (faster-whisper + диаризация) делегируется Analysis Engine
 #   (POST /transcribe): модель загружена один раз в одном процессе;
 # - мультиагентная оркестрация (LangGraph: классификатор ∥ качество ∥
-#   комплаенс ∥ суммаризатор) выполняется ЗДЕСЬ, в процессе pipelines —
+#   комплаенс ∥ суммаризатор) выполняется ЗДЕСЬ, в процессе pipelines -
 #   как в скелете из ТЗ; тот же граф из общего пакета использует REST /analyze;
 # - готовый отчёт отправляется в engine (POST /reports), чтобы Prometheus-метрики
 #   и хранилище трендов были едиными для чата и REST.
 #
-# Тип pipeline — «pipe» (собственная модель в списке моделей OpenWebUI):
-# анализ звонка — самостоятельный сценарий с собственным выводом, а не
+# Тип pipeline - «pipe» (собственная модель в списке моделей OpenWebUI):
+# анализ звонка - самостоятельный сценарий с собственным выводом, а не
 # модификация чужого запроса (filter) и не кнопка на сообщении (action).
 
 from __future__ import annotations
@@ -54,7 +54,7 @@ _HELP_MESSAGE = """\
 **Как отправить звонок на анализ:**
 1. 📎 Прикрепите аудиофайл к сообщению (WAV / MP3 / OGG), или
 2. 🔗 Пришлите прямую ссылку на аудио (`https://...`), или
-3. 📈 Напишите `тренды` — сводка и паттерны по последним звонкам.
+3. 📈 Напишите `тренды` - сводка и паттерны по последним звонкам.
 
 **Что вы получите:** транскрипт с диаризацией (Оператор/Клиент), тематику
 и приоритет, чеклист качества, compliance-проверку, резюме и action items.
@@ -86,7 +86,7 @@ class Pipeline:
 
     def __init__(self) -> None:
         self.name = "МТБанк: Анализ звонка"
-        # начальные значения валв — из переменных окружения контейнера,
+        # начальные значения валв - из переменных окружения контейнера,
         # дальше редактируются через UI (Admin → Pipelines)
         self.valves = self.Valves.model_validate(
             {field: os.environ[field] for field in self.Valves.model_fields if field in os.environ}
@@ -123,7 +123,7 @@ class Pipeline:
 
     def _make_llm(self) -> OpenAICompatLLM:
         return OpenAICompatLLM(
-            Settings(  # type: ignore[call-arg]  # _env_file — рантайм-параметр pydantic-settings
+            Settings(  # type: ignore[call-arg]  # _env_file - рантайм-параметр pydantic-settings
                 llm_base_url=self.valves.LLM_BASE_URL,
                 llm_api_key=self.valves.LLM_API_KEY,
                 llm_model=self.valves.LLM_MODEL,
@@ -135,7 +135,7 @@ class Pipeline:
 
     async def _analyze(self, transcription: TranscriptionResult) -> AnalysisReport:
         # LLM создаётся здесь, внутри per-request event loop, и живёт только один
-        # запрос — так пул соединений не переиспользуется через закрытый loop.
+        # запрос - так пул соединений не переиспользуется через закрытый loop.
         orchestrator = self._injected_orchestrator or CallAnalysisOrchestrator(
             self._make_llm(), agent_timeout_sec=self.valves.AGENT_TIMEOUT_SEC
         )
@@ -146,7 +146,7 @@ class Pipeline:
     def pipe(
         self, user_message: str, model_id: str, messages: list[dict], body: dict
     ) -> str | Generator | Iterator:
-        """Точка входа OpenWebUI. Синхронный генератор — стримим прогресс."""
+        """Точка входа OpenWebUI. Синхронный генератор - стримим прогресс."""
         return self._run(user_message, body)
 
     def _run(self, user_message: str, body: dict) -> Generator[str, None, None]:
@@ -169,7 +169,7 @@ class Pipeline:
             yield (
                 f"✅ Готово: {len(transcription.segments)} реплик, "
                 f"{transcription.duration_sec:.0f} сек, язык: "
-                f"{transcription.language or '—'}\n\n"
+                f"{transcription.language or '-'}\n\n"
             )
 
             yield "🤖 Агенты анализируют (классификация ∥ качество ∥ комплаенс ∥ резюме)…\n\n"
@@ -206,7 +206,7 @@ class Pipeline:
     def _find_attached_file(body: dict) -> tuple[str, str] | None:
         """Ищет аудиофайл в body["files"] / body["metadata"]["files"].
 
-        Формат элементов различается между версиями OpenWebUI — разбираем
+        Формат элементов различается между версиями OpenWebUI - разбираем
         защитно: берём последний файл с аудио-расширением или audio/* типом.
         """
         candidates: list[Any] = []
@@ -314,9 +314,9 @@ class UserFacingError(RuntimeError):
 def _run_async(coro):
     """Выполняет корутину из синхронного pipe().
 
-    Сервер pipelines обычно зовёт sync-pipe в тредпуле (там event loop нет —
+    Сервер pipelines обычно зовёт sync-pipe в тредпуле (там event loop нет -
     достаточно asyncio.run), но отдельные версии вызывают его из потока с
-    запущенным loop — тогда выполняем в отдельном потоке со своим loop.
+    запущенным loop - тогда выполняем в отдельном потоке со своим loop.
     """
     try:
         asyncio.get_running_loop()
@@ -383,7 +383,7 @@ def render_report(report: AnalysisReport) -> str:
     else:
         lines += ["| Правило | Серьёзность | Цитата |", "|---|---|---|"]
         for issue in compliance.issues:
-            quote = issue.quote.replace("|", "\\|") if issue.quote else "—"
+            quote = issue.quote.replace("|", "\\|") if issue.quote else "-"
             lines.append(f"| {issue.rule} | {issue.severity} | {quote} |")
         lines += [""]
 
@@ -402,12 +402,12 @@ def render_report(report: AnalysisReport) -> str:
 
     meta = report.meta
     footer = (
-        f"_ASR: {meta.asr_model or '—'} · LLM: {meta.llm_model or '—'}"
-        f" · id: {meta.correlation_id or '—'}_"
+        f"_ASR: {meta.asr_model or '-'} · LLM: {meta.llm_model or '-'}"
+        f" · id: {meta.correlation_id or '-'}_"
     )
     if meta.agent_failures:
         failed = ", ".join(f.agent for f in meta.agent_failures)
-        footer += f"\n\n⚠️ _Часть агентов недоступна ({failed}) — результат неполный._"
+        footer += f"\n\n⚠️ _Часть агентов недоступна ({failed}) - результат неполный._"
     lines.append(footer)
     return "\n".join(lines)
 

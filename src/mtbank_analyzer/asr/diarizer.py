@@ -2,12 +2,12 @@
 
 Два пути (выбирается автоматически):
 
-1. **Стерео** — в колл-центрах запись обычно двухканальная (оператор и клиент
-   в отдельных каналах). Каналы транскрибируются раздельно — диаризация
+1. **Стерео** - в колл-центрах запись обычно двухканальная (оператор и клиент
+   в отдельных каналах). Каналы транскрибируются раздельно - диаризация
    получается точной по построению.
-2. **Моно** — лёгкая спикер-кластеризация без тяжёлых моделей: MFCC-статистики
+2. **Моно** - лёгкая спикер-кластеризация без тяжёлых моделей: MFCC-статистики
    по каждому ASR-сегменту → иерархическая кластеризация (cosine, average
-   linkage) на 2 кластера. Без gated-моделей (pyannote требует HF-токен) —
+   linkage) на 2 кластера. Без gated-моделей (pyannote требует HF-токен) -
    ``docker compose up`` работает из коробки; продакшен-апгрейд описан в README.
 
 Роли назначаются по содержанию реплик (маркеры речи оператора) с приором
@@ -51,7 +51,7 @@ _CLIENT_MARKERS = [
     r"мой счёт",
 ]
 
-_MIN_SEGMENT_SEC = 0.25  # короче — не считаем эмбеддинг, наследуем спикера
+_MIN_SEGMENT_SEC = 0.25  # короче - не считаем эмбеддинг, наследуем спикера
 
 
 def _marker_score(text: str, patterns: list[str]) -> int:
@@ -75,7 +75,7 @@ def mfcc_embedding(
 ) -> np.ndarray | None:
     """MFCC-статистики фрагмента: (mean ‖ std) по фреймам → вектор 2*n_coeffs.
 
-    Реализация на numpy/scipy — без librosa/torch: для разделения двух голосов
+    Реализация на numpy/scipy - без librosa/torch: для разделения двух голосов
     в телефонном канале статистик тембра достаточно (см. README, ограничения).
     """
     from scipy.fft import dct, rfft
@@ -239,7 +239,7 @@ class Diarizer:
 
     @staticmethod
     def _single_speaker(raw_segments: list[RawSegment]) -> list[TranscriptSegment]:
-        """Один говорящий: роль — по содержанию (по умолчанию Клиент)."""
+        """Один говорящий: роль - по содержанию (по умолчанию Клиент)."""
         role = OPERATOR if _operator_likeness([s.text for s in raw_segments]) > 0 else CLIENT
         return [
             TranscriptSegment(speaker=role, start=s.start, end=s.end, text=s.text)
@@ -255,7 +255,7 @@ class Diarizer:
 
         score_0 = _operator_likeness(texts[0])
         score_1 = _operator_likeness(texts[1])
-        if score_0 != score_1:  # noqa: SIM108 — вложенный тернарник хуже читается
+        if score_0 != score_1:  # noqa: SIM108 - вложенный тернарник хуже читается
             operator_label = 0 if score_0 > score_1 else 1
         else:
             operator_label = labels[0]  # приор: первым говорит оператор

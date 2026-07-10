@@ -1,9 +1,9 @@
 """Базовый агент: вызов LLM, строгая валидация JSON, ретрай, JSON-логирование.
 
 Контракт агента:
-- вход — ``AgentContext`` (диалог + сегменты + метаданные);
-- выход — Pydantic-модель (``llm_output_model`` → ``postprocess`` → результат);
-- при невалидном JSON — один повтор с текстом ошибки валидации в промпте;
+- вход - ``AgentContext`` (диалог + сегменты + метаданные);
+- выход - Pydantic-модель (``llm_output_model`` → ``postprocess`` → результат);
+- при невалидном JSON - один повтор с текстом ошибки валидации в промпте;
 - вход и выход каждого запуска логируются в JSON (требование ТЗ).
 """
 
@@ -45,7 +45,7 @@ class AgentError(RuntimeError):
 
 
 class LLMClient(Protocol):
-    """Минимальный интерфейс LLM — позволяет подменять клиента в тестах."""
+    """Минимальный интерфейс LLM - позволяет подменять клиента в тестах."""
 
     model_name: str
 
@@ -56,7 +56,7 @@ class OpenAICompatLLM:
     """Клиент любого OpenAI-совместимого эндпоинта (Ollama/vLLM/Groq/OpenRouter).
 
     JSON-mode (``response_format={"type": "json_object"}``) повышает долю валидных
-    ответов, но поддержан не всеми провайдерами — при ошибке клиент один раз
+    ответов, но поддержан не всеми провайдерами - при ошибке клиент один раз
     повторяет запрос без JSON-mode и запоминает это.
     """
 
@@ -87,7 +87,7 @@ class OpenAICompatLLM:
         except Exception as exc:
             # JSON-mode отключаем НАВСЕГДА только если провайдер явно его не принял
             # (клиентская ошибка 400/404/422). Транзиентную ошибку (429, 5xx, сеть)
-            # пробрасываем — иначе один rate-limit калечит JSON-mode на весь процесс.
+            # пробрасываем - иначе один rate-limit калечит JSON-mode на весь процесс.
             if client is self._json and _looks_like_json_mode_unsupported(exc):
                 logger.warning("llm_json_mode_unsupported", model=self.model_name)
                 self._json_mode_broken = True
@@ -110,7 +110,7 @@ def _looks_like_json_mode_unsupported(exc: Exception) -> bool:
 
 
 def _content_to_text(content: str | list) -> str:
-    """LangChain может вернуть список блоков — склеиваем текстовые части."""
+    """LangChain может вернуть список блоков - склеиваем текстовые части."""
     if isinstance(content, str):
         return content
     parts = [block if isinstance(block, str) else block.get("text", "") for block in content]
@@ -168,7 +168,7 @@ class BaseAgent(ABC, Generic[TLLMOut, TResult]):
         return (
             f"Транскрипт телефонного звонка "
             f"(длительность {ctx.duration_sec:.0f} сек, "
-            f"формат реплик: [начало–конец] Роль: текст):\n\n{ctx.dialog}"
+            f"формат реплик: [начало-конец] Роль: текст):\n\n{ctx.dialog}"
         )
 
     def postprocess(self, llm_output: TLLMOut, ctx: AgentContext) -> TResult:
@@ -201,7 +201,7 @@ class BaseAgent(ABC, Generic[TLLMOut, TResult]):
                 )
                 return result
             except (ValidationError, ValueError, json.JSONDecodeError) as exc:
-                # Невалидный JSON — даём LLM одну попытку исправиться
+                # Невалидный JSON - даём LLM одну попытку исправиться
                 last_error = exc
                 log.warning("agent_invalid_output", error=str(exc), attempt=attempt)
                 prompt = (

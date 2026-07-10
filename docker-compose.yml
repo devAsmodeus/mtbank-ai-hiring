@@ -1,9 +1,9 @@
-# МТБанк — анализ звонков контакт-центра. Весь стек: docker compose up -d
+# МТБанк - анализ звонков контакт-центра. Весь стек: docker compose up -d
 #
 # Профили:
-#   (без профиля)      — open-webui + pipelines + api + prometheus + grafana;
-#                        LLM — внешний OpenAI-совместимый эндпоинт из .env
-#   --profile local-llm — плюс локальная Ollama (модель качается при старте)
+#   (без профиля)      - open-webui + pipelines + api + prometheus + grafana;
+#                        LLM - внешний OpenAI-совместимый эндпоинт из .env
+#   --profile local-llm - плюс локальная Ollama (модель качается при старте)
 
 services:
   # ------------------------------------------------- Analysis Engine (ASR+API)
@@ -42,7 +42,7 @@ services:
       # наружу Pipelines API с ключом публиковать нельзя (загрузка произвольного
       # pipeline = исполнение кода). На публичном демо порт остаётся закрытым.
       - "127.0.0.1:9099:9099"
-    # ВАЖНО: named volume поверх /app/pipelines не монтируем — он бы
+    # ВАЖНО: named volume поверх /app/pipelines не монтируем - он бы
     # зашадовил обновлённый pipeline.py из образа при пересборке
     depends_on:
       - api
@@ -55,7 +55,7 @@ services:
     environment:
       OPENAI_API_BASE_URL: http://pipelines:9099
       OPENAI_API_KEY: ${PIPELINES_API_KEY:-0p3n-w3bu!}
-      WEBUI_NAME: "МТБанк — Речевая аналитика"
+      WEBUI_NAME: "МТБанк - Речевая аналитика"
       ENABLE_OLLAMA_API: "false"
     ports:
       - "3000:8080"

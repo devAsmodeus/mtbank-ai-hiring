@@ -45,7 +45,7 @@ async def test_failed_agent_degrades_gracefully(transcription: TranscriptionResu
 
     report = await orchestrator.analyze(transcription)
 
-    # анализ не упал, классификация — безопасный фолбэк
+    # анализ не упал, классификация - безопасный фолбэк
     assert report.classification.topic == "другое"
     assert [f.agent for f in report.meta.agent_failures] == ["classifier"]
     # остальные агенты отработали

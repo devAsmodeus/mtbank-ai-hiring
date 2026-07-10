@@ -113,7 +113,7 @@ def fake_llm(*responses: str | dict) -> FakeLLM:
 
 
 def make_wav_bytes(waveform: np.ndarray, sample_rate: int = SR, channels: int = 1) -> bytes:
-    """PCM16 WAV из float32-волны (столбцы — каналы при channels=2)."""
+    """PCM16 WAV из float32-волны (столбцы - каналы при channels=2)."""
     pcm = (np.clip(waveform, -1, 1) * 32767).astype(np.int16)
     buf = io.BytesIO()
     with wave.open(buf, "wb") as wav:

@@ -1,11 +1,11 @@
 # Changelog
 
-Значимые изменения проекта. Формат — [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/),
-версии — [SemVer](https://semver.org/lang/ru/).
+Значимые изменения проекта. Формат - [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/),
+версии - [SemVer](https://semver.org/lang/ru/).
 
 ## [Unreleased]
 
-## [0.1.0] — 2026-07-10
+## [0.1.0] - 2026-07-10
 
 ### Added
 - ASR-пайплайн на faster-whisper (`large-v3-turbo`) с диаризацией Оператор/Клиент:

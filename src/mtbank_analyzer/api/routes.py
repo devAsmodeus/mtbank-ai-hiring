@@ -30,7 +30,7 @@ async def _read_audio_input(request: Request, file: UploadFile | None, url: str 
             body = await request.json()
             url = body.get("url") if isinstance(body, dict) else None
     if file is not None:
-        # size известен из multipart-парсера до чтения тела — отсекаем большой
+        # size известен из multipart-парсера до чтения тела - отсекаем большой
         # аплоад, не материализуя его в памяти целиком
         if file.size is not None and file.size > max_bytes:
             raise AudioError(f"Файл больше лимита {max_mb} МБ")

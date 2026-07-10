@@ -4,7 +4,7 @@
 #     pip install -e ".[api,dev]"
 #     pre-commit install
 #
-# Хуки локальные (language: system, python -m ...) — используют ruff/mypy из
+# Хуки локальные (language: system, python -m ...) - используют ruff/mypy из
 # активного окружения проекта: одна версия инструментов с pyproject.toml и CI,
 # без расхождений с глобальными установками и без сетевых клонов реп хуков.
 # Коммитить нужно с активированным venv.
@@ -13,19 +13,19 @@ repos:
   - repo: local
     hooks:
       - id: ruff-check
-        name: ruff — линтер
+        name: ruff - линтер
         entry: python -m ruff check --force-exclude
         language: system
         types_or: [python, pyi]
 
       - id: ruff-format
-        name: ruff — форматер
+        name: ruff - форматер
         entry: python -m ruff format --force-exclude
         language: system
         types_or: [python, pyi]
 
       - id: mypy
-        name: mypy — типизация
+        name: mypy - типизация
         entry: python -m mypy
         language: system
         types: [python]

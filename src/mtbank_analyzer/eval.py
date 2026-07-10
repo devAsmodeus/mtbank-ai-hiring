@@ -6,8 +6,8 @@ WER меряет ASR; этот слой меряет суждения агент
 двух версий промпта сравниваются именно эти числа).
 
 Логика вынесена сюда, чтобы её переиспользовали и CLI-скрипт
-(``scripts/evaluate_agents.py`` — полный прогон через LLM), и офлайн-тест
-(``tests/test_eval.py`` — детерминированный compliance-контур без LLM).
+(``scripts/evaluate_agents.py`` - полный прогон через LLM), и офлайн-тест
+(``tests/test_eval.py`` - детерминированный compliance-контур без LLM).
 """
 
 from __future__ import annotations

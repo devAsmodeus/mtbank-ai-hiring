@@ -2,11 +2,11 @@
 
 Прогоняет все аудио из ``test_data/`` через полный ASR-пайплайн проекта
 (декодирование → faster-whisper → диаризация) и сравнивает с эталонами
-``<имя>.txt``. Результат — markdown-таблица для README.
+``<имя>.txt``. Результат - markdown-таблица для README.
 
 Нормализация перед сравнением (стандартная для русского ASR-эваля):
 нижний регистр, ё→е, удаление пунктуации, схлопывание пробелов.
-Числительные НЕ нормализуются (если модель напишет «10» вместо «десяти» —
+Числительные НЕ нормализуются (если модель напишет «10» вместо «десяти» -
 это засчитывается как ошибка), поэтому цифры в таблице скорее занижены.
 
 Запуск: python scripts/evaluate_wer.py [--data test_data] [--model large-v3-turbo]
@@ -62,7 +62,7 @@ async def evaluate(data_dir: Path, model: str | None, out_path: Path) -> None:
 
     service = TranscriptionService(settings)
     print("Прогрев модели (загрузка при первом запуске)…", flush=True)
-    service.transcriber.warmup()  # загрузка модели — вне замеров времени
+    service.transcriber.warmup()  # загрузка модели - вне замеров времени
 
     rows: list[dict] = []
     for audio_path in sorted(data_dir.iterdir()):

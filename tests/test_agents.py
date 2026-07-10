@@ -70,7 +70,7 @@ async def test_quality_total_computed_in_code_not_by_llm(ctx: AgentContext) -> N
     )
     result = await QualityAgent(llm=llm).run(ctx)
 
-    # 20 + 25 + 35 + 0 — арифметика детерминированная
+    # 20 + 25 + 35 + 0 - арифметика детерминированная
     assert result.total == 80
     assert result.checklist.farewell is False
     assert result.comments == ["Оператор не попрощался"]
@@ -113,7 +113,7 @@ async def test_compliance_regex_catches_forbidden_phrase() -> None:
         )
     ]
     ctx = AgentContext.from_segments(segments)
-    llm = fake_llm({"issues": []})  # LLM ничего не нашла — regex-контур страхует
+    llm = fake_llm({"issues": []})  # LLM ничего не нашла - regex-контур страхует
 
     result = await ComplianceAgent(llm=llm).run(ctx)
 
@@ -144,9 +144,9 @@ async def test_compliance_merges_llm_and_regex_without_duplicates() -> None:
     llm = fake_llm(
         {
             "issues": [
-                # дубль regex-находки (та же цитата) — должен быть отброшен
+                # дубль regex-находки (та же цитата) - должен быть отброшен
                 {"rule": "Запрос CVV", "quote": quote, "severity": "high", "comment": ""},
-                # уникальная семантическая находка — должна остаться
+                # уникальная семантическая находка - должна остаться
                 {
                     "rule": "Отсутствие дисклеймера",
                     "quote": "Ставка четырнадцать процентов.",
@@ -181,7 +181,7 @@ async def test_compliance_catches_guarantee_with_comma() -> None:
 
 
 async def test_compliance_ignores_negated_guarantee() -> None:
-    # «не гарантирует одобрение» — не нарушение, а корректная оговорка
+    # «не гарантирует одобрение» - не нарушение, а корректная оговорка
     rules = await _compliance_of("Банк не гарантирует одобрение, решение принимает банк.")
     assert rules == []
 
@@ -193,7 +193,7 @@ async def test_compliance_ignores_antifraud_warning() -> None:
 
 
 async def test_compliance_catches_sms_code_with_words_between() -> None:
-    # «код ПОДТВЕРЖДЕНИЯ из СМС» — слова между «код» и «из СМС» не мешают
+    # «код ПОДТВЕРЖДЕНИЯ из СМС» - слова между «код» и «из СМС» не мешают
     rules = await _compliance_of("Назовите код подтверждения из СМС.")
     assert any("кода из СМС" in r for r in rules)
 

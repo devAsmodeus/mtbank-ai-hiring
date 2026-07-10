@@ -11,7 +11,7 @@ _VALID_LOG_LEVELS = frozenset({"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"})
 
 
 class Settings(BaseSettings):
-    """Все настройки системы. Значения по умолчанию — для docker compose."""
+    """Все настройки системы. Значения по умолчанию - для docker compose."""
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
@@ -20,7 +20,7 @@ class Settings(BaseSettings):
         default="http://ollama:11434/v1",
         description="OpenAI-совместимый эндпоинт: Ollama / vLLM / Groq / OpenRouter",
     )
-    llm_api_key: str = Field(default="ollama", description="API-ключ (для Ollama — любой)")
+    llm_api_key: str = Field(default="ollama", description="API-ключ (для Ollama - любой)")
     llm_model: str = Field(default="qwen2.5:7b", description="Имя модели у провайдера")
     llm_temperature: float = 0.1
     llm_timeout_sec: float = 90.0
@@ -40,7 +40,7 @@ class Settings(BaseSettings):
         default="auto", description="auto → int8 на CPU, float16 на GPU"
     )
     whisper_beam_size: int = 2
-    whisper_language: str | None = Field(default="ru", description="None — автоопределение языка")
+    whisper_language: str | None = Field(default="ru", description="None - автоопределение языка")
 
     # --- Диаризация ---
     diarization_enabled: bool = True

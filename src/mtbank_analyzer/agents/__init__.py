@@ -1,7 +1,7 @@
 """Мультиагентная аналитика звонков.
 
-Каждый агент — узкая роль с собственным промптом и строгой Pydantic-схемой
-ответа. Оркестрация агентов — в ``mtbank_analyzer.orchestration``.
+Каждый агент - узкая роль с собственным промптом и строгой Pydantic-схемой
+ответа. Оркестрация агентов - в ``mtbank_analyzer.orchestration``.
 """
 
 from mtbank_analyzer.agents.base import (

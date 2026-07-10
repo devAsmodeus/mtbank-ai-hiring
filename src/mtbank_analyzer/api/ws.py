@@ -3,12 +3,12 @@
 Протокол ``/ws/transcribe``:
 
 1. Клиент подключается и (опционально) шлёт текстовый кадр-конфиг:
-   ``{"sample_rate": 16000}`` — PCM16 mono little-endian; по умолчанию 16 кГц.
+   ``{"sample_rate": 16000}`` - PCM16 mono little-endian; по умолчанию 16 кГц.
 2. Клиент стримит бинарные кадры PCM16.
 3. Каждые ~2 секунды накопленного аудио сервер транскрибирует блок и шлёт
    ``{"type": "segment", "start": ..., "end": ..., "text": ...}``.
-   Латентность ≈ блок (2 c) + инференс (~0.5–1 c на CPU) < 3 c.
-4. Кадр ``{"type": "flush"}`` — сервер дорабатывает остаток и шлёт
+   Латентность ≈ блок (2 c) + инференс (~0.5-1 c на CPU) < 3 c.
+4. Кадр ``{"type": "flush"}`` - сервер дорабатывает остаток и шлёт
    ``{"type": "done", "segments": [...]}`` с диаризацией по накопленным блокам.
 
 Ограничение прототипа: сегменты в стриме могут рваться на границах блоков;
@@ -61,7 +61,7 @@ async def ws_transcribe(websocket: WebSocket) -> None:
     max_samples = int(max_sec * TARGET_SR)
 
     pending = np.zeros(0, dtype=np.float32)  # ещё не транскрибировано
-    full_audio: list[np.ndarray] = []  # вся запись — для финальной диаризации
+    full_audio: list[np.ndarray] = []  # вся запись - для финальной диаризации
     accumulated: list[RawSegment] = []  # сегменты блоков с абсолютным временем
     processed_sec = 0.0
     total_samples = 0
@@ -96,7 +96,7 @@ async def ws_transcribe(websocket: WebSocket) -> None:
         pending = np.zeros(0, dtype=np.float32)
 
         waveform = np.concatenate(full_audio) if full_audio else np.zeros(0, dtype=np.float32)
-        # диаризуем уже полученные сегменты по полной волне — без повторного ASR
+        # диаризуем уже полученные сегменты по полной волне - без повторного ASR
         segments = service.diarizer.diarize_mono(waveform, TARGET_SR, accumulated)
         await send(
             {
@@ -146,7 +146,7 @@ async def ws_transcribe(websocket: WebSocket) -> None:
                         continue
                     if not 4000 <= rate <= 192_000:
                         await send(
-                            {"type": "error", "detail": "sample_rate вне диапазона 4000–192000"}
+                            {"type": "error", "detail": "sample_rate вне диапазона 4000-192000"}
                         )
                         continue
                     source_sr = rate

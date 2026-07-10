@@ -1,4 +1,4 @@
-"""TranscriptionService — фасад ASR: bytes → структурированный транскрипт."""
+"""TranscriptionService - фасад ASR: bytes → структурированный транскрипт."""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ logger = get_logger(__name__)
 class TranscriptionService:
     """Оркестрирует декодирование → ASR → диаризацию.
 
-    Инференс whisper CPU-bound и выполняется в тред-пуле; одновременно — одна
+    Инференс whisper CPU-bound и выполняется в тред-пуле; одновременно - одна
     транскрибация (семафор): на CPU параллельные прогоны только делят ядра
     и раздувают память, увеличивая латентность каждого запроса.
     """
@@ -84,14 +84,14 @@ class TranscriptionService:
         return segments, outcome.language
 
     # пауза между словами, по которой канал режется на реплики: у канала
-    # одного говорящего длинные окна тишины (говорит собеседник) — whisper
+    # одного говорящего длинные окна тишины (говорит собеседник) - whisper
     # склеил бы далёкие реплики, сломав порядок при слиянии каналов
     _STEREO_WORD_GAP_SEC = 0.6
 
     async def _transcribe_stereo(
         self, decoded: DecodedAudio
     ) -> tuple[list[TranscriptSegment], str | None]:
-        """Каналы транскрибируются по отдельности — диаризация по построению."""
+        """Каналы транскрибируются по отдельности - диаризация по построению."""
         assert decoded.channels is not None
         left, right = decoded.channels
         left_out = await asyncio.to_thread(

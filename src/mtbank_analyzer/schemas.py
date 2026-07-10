@@ -1,7 +1,7 @@
 """Pydantic-модели: контракт данных всей системы.
 
-JSON-контракт ответа ``/analyze`` зафиксирован в ТЗ — модели ниже воспроизводят
-его 1:1 (поле ``meta`` — дополнительное, аддитивное расширение).
+JSON-контракт ответа ``/analyze`` зафиксирован в ТЗ - модели ниже воспроизводят
+его 1:1 (поле ``meta`` - дополнительное, аддитивное расширение).
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ CLIENT = "Клиент"
 
 # Служебное «нарушение», которым помечается звонок, когда LLM-контур комплаенса
 # недоступен. В отчёте оно нужно (сигнал ручной проверки), но в агрегаты трендов
-# не идёт — иначе завышает долю нарушений и попадает в топ «частых».
+# не идёт - иначе завышает долю нарушений и попадает в топ «частых».
 COMPLIANCE_NOT_RUN = "Проверка не выполнена"
 
 Topic = Literal["кредиты", "карты", "переводы", "жалобы", "другое"]
@@ -60,7 +60,7 @@ class QualityScore(BaseModel):
 
     LLM отвечает за семантические суждения (было ли приветствие), арифметика
     детерминированная, чтобы балл был воспроизводимым и аудируемым. Веса пунктов
-    — бизнес-политика, живут в конфиге (``rules/quality_weights.yaml``), а не в
+    - бизнес-политика, живут в конфиге (``rules/quality_weights.yaml``), а не в
     контракте данных, и передаются извне.
     """
 
@@ -100,12 +100,12 @@ class ComplianceResult(BaseModel):
 class CallSummary(BaseModel):
     """Результат суммаризатора."""
 
-    summary: str = Field(description="Резюме разговора, 3–5 предложений")
+    summary: str = Field(description="Резюме разговора, 3-5 предложений")
     action_items: list[str] = Field(default_factory=list)
 
 
 class AgentFailure(BaseModel):
-    """Ошибка отдельного агента — не валит весь анализ (graceful degradation)."""
+    """Ошибка отдельного агента - не валит весь анализ (graceful degradation)."""
 
     agent: str
     error: str
@@ -119,14 +119,14 @@ class AnalysisMeta(BaseModel):
     language: str | None = None
     asr_model: str | None = None
     llm_model: str | None = None
-    #: версия промпта каждого агента — основа для A/B и разбора регрессий
+    #: версия промпта каждого агента - основа для A/B и разбора регрессий
     prompt_versions: dict[str, str] = Field(default_factory=dict)
     processing_ms: int | None = None
     agent_failures: list[AgentFailure] = Field(default_factory=list)
 
 
 class AnalysisReport(BaseModel):
-    """Полный ответ ``POST /analyze`` — структура из ТЗ + ``meta``."""
+    """Полный ответ ``POST /analyze`` - структура из ТЗ + ``meta``."""
 
     transcript: list[TranscriptSegment]
     classification: Classification
@@ -147,7 +147,7 @@ class TranscriptionResult(BaseModel):
 
 
 class AnalysisRecord(BaseModel):
-    """Запись анализа в хранилище — типизированный источник данных для трендов.
+    """Запись анализа в хранилище - типизированный источник данных для трендов.
 
     Отделена от ``AnalysisReport``: хранит только агрегируемые поля, а не весь
     транскрипт. Замена бэкенда (Postgres) работает с этой моделью, а не с
@@ -185,7 +185,7 @@ class AnalysisRecord(BaseModel):
 def format_dialog(segments: list[TranscriptSegment]) -> str:
     """Транскрипт в текстовый диалог для промптов LLM."""
     lines = [
-        f"[{seg.start:07.2f}–{seg.end:07.2f}] {seg.speaker}: {seg.text}"
+        f"[{seg.start:07.2f}-{seg.end:07.2f}] {seg.speaker}: {seg.text}"
         for seg in segments
         if seg.text
     ]

@@ -44,7 +44,7 @@ def configure_logging(level: str = "INFO") -> None:
         cache_logger_on_first_use=True,
     )
 
-    # stdlib-логи (uvicorn.access и пр.) — в тот же JSON-формат
+    # stdlib-логи (uvicorn.access и пр.) - в тот же JSON-формат
     formatter = structlog.stdlib.ProcessorFormatter(
         foreign_pre_chain=shared_processors,
         processors=[

@@ -50,7 +50,7 @@ async def stream(path: Path, url: str, realtime: bool) -> None:
                         # латентность = момент получения минус конец сегмента
                         latency = elapsed - data["end"]
                         print(
-                            f"<< [{data['start']:6.1f}–{data['end']:6.1f}] "
+                            f"<< [{data['start']:6.1f}-{data['end']:6.1f}] "
                             f"{data['text']}  (латентность ~{latency:.1f} c)"
                         )
                     elif data["type"] == "done":

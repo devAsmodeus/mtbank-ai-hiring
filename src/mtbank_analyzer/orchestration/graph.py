@@ -60,7 +60,7 @@ _AGENT_NODES = ("classifier", "quality", "compliance", "summarizer")
 
 
 class GraphState(TypedDict, total=False):
-    """Состояние графа. Каждый агент пишет только свой ключ — конфликтов нет,
+    """Состояние графа. Каждый агент пишет только свой ключ - конфликтов нет,
     ``failures`` объединяется reducer-ом (параллельные записи складываются)."""
 
     transcription: TranscriptionResult
@@ -96,7 +96,7 @@ class CallAnalysisOrchestrator:
     ) -> AnalysisReport:
         """Прогоняет транскрипт через мультиагентный граф."""
         if not transcription.segments:
-            raise ValueError("транскрипт пуст — нечего анализировать")
+            raise ValueError("транскрипт пуст - нечего анализировать")
 
         correlation_id = correlation_id or uuid.uuid4().hex
         # reset-token, а не unbind: если correlation_id уже привязан вызывающим
@@ -132,7 +132,7 @@ class CallAnalysisOrchestrator:
     # ------------------------------------------------------------ построение
 
     def _build_graph(self) -> Any:
-        # mypy не выводит generics StateGraph для TypedDict-схемы — работаем как с Any
+        # mypy не выводит generics StateGraph для TypedDict-схемы - работаем как с Any
         graph: Any = StateGraph(GraphState)
         graph.add_node("prepare", self._prepare)
         graph.add_node("classifier", self._agent_node(self.classifier, "classification"))
@@ -169,7 +169,7 @@ class CallAnalysisOrchestrator:
 
     @staticmethod
     def _aggregate(state: GraphState) -> dict:
-        """Собирает итоговый отчёт; для упавших агентов — безопасные фолбэки."""
+        """Собирает итоговый отчёт; для упавших агентов - безопасные фолбэки."""
         ctx = state["ctx"]
         transcription = state["transcription"]
         failures = state.get("failures", [])
@@ -199,7 +199,7 @@ class CallAnalysisOrchestrator:
                     ComplianceIssue(
                         rule=COMPLIANCE_NOT_RUN,
                         severity="high",
-                        comment="LLM-контур комплаенса недоступен — требуется ручная проверка",
+                        comment="LLM-контур комплаенса недоступен - требуется ручная проверка",
                     ),
                 ],
             )

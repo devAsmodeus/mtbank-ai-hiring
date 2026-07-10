@@ -142,10 +142,9 @@ def cluster_two_speakers(embeddings: np.ndarray) -> np.ndarray:
 
 @dataclass
 class Diarizer:
-    """Назначает спикеров ASR-сегментам."""
+    """Назначает спикеров ASR-сегментам (Оператор/Клиент)."""
 
     enabled: bool = True
-    max_speakers: int = 2
 
     # --- моно: кластеризация ---
 

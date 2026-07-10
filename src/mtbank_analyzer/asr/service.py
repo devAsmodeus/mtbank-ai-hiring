@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 
-from mtbank_analyzer.asr.audio import AudioError, DecodedAudio, decode_bytes
+from mtbank_analyzer.asr.audio import AudioError, DecodedAudio, decode_bytes, probe_duration_sec
 from mtbank_analyzer.asr.diarizer import Diarizer
 from mtbank_analyzer.asr.transcriber import Transcriber
 from mtbank_analyzer.config import Settings
@@ -36,19 +36,21 @@ class TranscriptionService:
             beam_size=settings.whisper_beam_size,
             language=settings.whisper_language,
         )
-        self.diarizer = diarizer or Diarizer(
-            enabled=settings.diarization_enabled,
-            max_speakers=settings.diarization_max_speakers,
-        )
+        self.diarizer = diarizer or Diarizer(enabled=settings.diarization_enabled)
         self._semaphore = asyncio.Semaphore(1)
 
     async def transcribe_bytes(self, data: bytes) -> TranscriptionResult:
         """Полный ASR-пайплайн для готового файла."""
+        max_sec = self._settings.max_audio_duration_sec
+        # Отсекаем длинное аудио по метаданным контейнера ДО декодирования,
+        # чтобы низкобитрейтный файл не раздулся в память гигабайтами PCM.
+        probed = await asyncio.to_thread(probe_duration_sec, data)
+        if probed is not None and probed > max_sec:
+            raise AudioError(f"Аудио длиннее лимита {max_sec / 60:.0f} мин")
+
         decoded: DecodedAudio = await asyncio.to_thread(decode_bytes, data)
-        if decoded.duration_sec > self._settings.max_audio_duration_sec:
-            raise AudioError(
-                f"Аудио длиннее лимита {self._settings.max_audio_duration_sec / 60:.0f} мин"
-            )
+        if decoded.duration_sec > max_sec:
+            raise AudioError(f"Аудио длиннее лимита {max_sec / 60:.0f} мин")
 
         async with self._semaphore:
             if decoded.is_stereo and self.diarizer.enabled:

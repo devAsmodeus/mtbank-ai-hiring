@@ -11,14 +11,16 @@ COPY pyproject.toml README.md ./
 COPY src ./src
 RUN pip install ".[api]"
 
-# non-root: требование безопасности для банковской инфраструктуры
-RUN useradd --create-home --uid 1000 app \
-    && mkdir -p /app/data \
-    && chown -R app:app /app
-USER app
-
 # кэш моделей whisper — выносится в named volume (см. docker-compose.yml)
 ENV HF_HOME=/home/app/.cache/huggingface
+
+# non-root: требование безопасности для банковской инфраструктуры.
+# Каталог кэша создаётся и передаётся во владение app ДО монтирования тома —
+# иначе точка монтирования остаётся root:root и uid 1000 не может писать в неё.
+RUN useradd --create-home --uid 1000 app \
+    && mkdir -p /app/data "$HF_HOME" \
+    && chown -R app:app /app /home/app
+USER app
 
 EXPOSE 8000
 

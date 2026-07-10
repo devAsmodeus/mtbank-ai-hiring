@@ -13,8 +13,18 @@ import sys
 import structlog
 
 
+def _resolve_level(level: str) -> int:
+    """Имя уровня → числовой код; неизвестное имя не роняет процесс, а даёт INFO.
+
+    Settings уже валидирует LOG_LEVEL, но configure_logging может вызываться и
+    напрямую (pipeline.py), поэтому подстраховываемся здесь.
+    """
+    return logging.getLevelNamesMapping().get(level.strip().upper(), logging.INFO)
+
+
 def configure_logging(level: str = "INFO") -> None:
     """Идемпотентная настройка JSON-логирования для всего процесса."""
+    numeric_level = _resolve_level(level)
     shared_processors: list[structlog.typing.Processor] = [
         structlog.contextvars.merge_contextvars,
         structlog.processors.add_log_level,
@@ -29,7 +39,7 @@ def configure_logging(level: str = "INFO") -> None:
             structlog.processors.format_exc_info,
             structlog.processors.JSONRenderer(ensure_ascii=False),
         ],
-        wrapper_class=structlog.make_filtering_bound_logger(logging.getLevelName(level.upper())),
+        wrapper_class=structlog.make_filtering_bound_logger(numeric_level),
         logger_factory=structlog.PrintLoggerFactory(sys.stdout),
         cache_logger_on_first_use=True,
     )
@@ -47,7 +57,7 @@ def configure_logging(level: str = "INFO") -> None:
     root = logging.getLogger()
     root.handlers.clear()
     root.addHandler(handler)
-    root.setLevel(level.upper())
+    root.setLevel(numeric_level)
 
 
 def get_logger(name: str) -> structlog.typing.FilteringBoundLogger:

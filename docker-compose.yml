@@ -38,7 +38,10 @@ services:
       LLM_MODEL: ${LLM_MODEL:-qwen2.5:7b}
       LLM_JSON_MODE: ${LLM_JSON_MODE:-true}
     ports:
-      - "9099:9099"
+      # только на localhost: OpenWebUI ходит по внутренней сети compose, а
+      # наружу Pipelines API с ключом публиковать нельзя (загрузка произвольного
+      # pipeline = исполнение кода). На публичном демо порт остаётся закрытым.
+      - "127.0.0.1:9099:9099"
     # ВАЖНО: named volume поверх /app/pipelines не монтируем — он бы
     # зашадовил обновлённый pipeline.py из образа при пересборке
     depends_on:
@@ -98,7 +101,9 @@ services:
       - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus-data:/prometheus
     ports:
-      - "9090:9090"
+      # только на localhost: наружу Prometheus публиковать не нужно (info-disclosure),
+      # Grafana ходит к нему по внутренней сети compose
+      - "127.0.0.1:9090:9090"
     depends_on:
       - api
     restart: unless-stopped

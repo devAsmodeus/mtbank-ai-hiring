@@ -11,8 +11,6 @@
 получает: транскрипт с ролями «Оператор/Клиент», тематику и приоритет обращения,
 чеклист качества работы оператора, compliance-проверку, резюме и action items.
 
-**[English summary below](#english-summary)**
-
 ---
 
 ## Содержание
@@ -486,20 +484,3 @@ grafana.demo.example.com {
 ├── docker-compose.yml           # весь стек одной командой
 └── .env.example                 # вся конфигурация с комментариями
 ```
-
----
-
-## English summary
-
-Test assignment for the MTBank AI Engineer role: a call-center speech analytics
-prototype. An **OpenWebUI Pipeline** accepts an audio file (or URL) in chat,
-delegates ASR to a FastAPI engine (**faster-whisper large-v3-turbo** + basic
-diarization: true-stereo channel split or MFCC clustering), then runs a
-**LangGraph multi-agent graph** in-process - classifier, quality scorer,
-compliance checker and summarizer fan out in parallel and join into a single
-report. The same graph package powers the REST endpoint `POST /analyze`
-(contract from the assignment), so chat and API never drift. Extras: WebSocket
-real-time transcription, provisioned Grafana dashboard, trends agent over
-accumulated calls, JSON structured logging with correlation ids, graceful
-degradation (a failed agent never kills the analysis; compliance fails closed),
-72 offline tests, and `docker compose up` brings up the whole stack.
